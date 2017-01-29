@@ -1,0 +1,10 @@
+[version]
+^0.38
+
+[ignore]
+<PROJECT_ROOT>/node_modules/.*
+
+[libs]
+
+[options]
+module.use_strict=true
