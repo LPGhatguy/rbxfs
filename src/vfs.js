@@ -98,7 +98,7 @@ export class VFS {
 			name = name.replace(/\.lua$/, "");
 		}
 
-		name = name.replace(/\//g, ".");
+		name = name.replace(/[\/\\]/g, ".");
 
 		return {
 			type,
