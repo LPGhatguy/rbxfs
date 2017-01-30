@@ -32,8 +32,8 @@ tasks.dev = () => {
 	return tasks.build();
 };
 
-for (const name of Object.keys(tasks)) {
-	gulp.task(name, tasks[name]);
-}
+tasks.default = tasks.build;
 
-gulp.task("default", tasks.build);
+for (const name of Object.keys(tasks)) {
+	gulp.task(name, () => tasks[name]());
+}

@@ -5,8 +5,6 @@ end
 local Net = require(script.Parent.Net)
 local VFS = require(script.Parent.VFS)
 
-Net:setBaseUrl("http://192.168.1.123:8000/")
-
 function main()
 	local toolbar = plugin:CreateToolbar("RBXFS Plugin")
 
