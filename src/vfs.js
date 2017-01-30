@@ -9,8 +9,8 @@ type ChokidarWatcher = Object;
 
 export type ChangeEvent = {
 	type: "change" | "delete",
-	name: string,
-	timestamp: number
+	timestamp: number,
+	object: RBXObject
 };
 
 export type RBXObject = {
@@ -28,16 +28,16 @@ export class VFS {
 		this.root = root;
 	}
 
-	_addChange(type: "change" | "delete", name: string): void {
+	_addChange(type: "change" | "delete", object: RBXObject): void {
 		const timestamp = this.now();
 
-		this._latestChanges.set(name, {
+		this._latestChanges.set(object.name, {
 			type,
-			name,
-			timestamp
+			timestamp,
+			object
 		});
 
-		console.log("Added change for", name, timestamp);
+		console.log("Added change for", object.name, timestamp);
 	}
 
 	now(): number {
@@ -55,8 +55,8 @@ export class VFS {
 			ignoreInitial: true
 		});
 
-		const handleChange = (filename: string) => this._addChange("change", this.fileToRBX(filename).name);
-		const handleDelete = (filename: string) => this._addChange("delete", this.fileToRBX(filename).name);
+		const handleChange = (filename: string) => this._addChange("change", this.fileToRBX(filename));
+		const handleDelete = (filename: string) => this._addChange("delete", this.fileToRBX(filename));
 
 		watcher.on("add", handleChange);
 		watcher.on("change", handleChange);
@@ -99,7 +99,6 @@ export class VFS {
 		}
 
 		name = name.replace(/\//g, ".");
-		name = "game." + name;
 
 		return {
 			type,
@@ -117,7 +116,6 @@ export class VFS {
 		}
 
 		return rbx.name
-			.replace(/^game\./, "")
 			.replace(/\./g, "/") + suffix;
 	}
 }
