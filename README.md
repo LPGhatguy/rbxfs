@@ -7,6 +7,18 @@ A system to replicate scripts from a ROBLOX place to the filesystem.
 - Navigate to the folder to sync and run `rbxfs`
 - Use buttons in plugin to move files between server and ROBLOX
 
+## Configuration
+As of RBXFS version 0.2.0, the system supports configuration via a file called `rbxfs.json` in the root of your project.
+
+To synchronize files in the `src` directory to `ReplicatedStorage.MyGame`, use this configuration:
+
+```json
+{
+	"rootDirectory": "src",
+	"rootObject": "ReplicatedStorage.MyGame"
+}
+```
+
 ## Developing
 Building requires Node.js 6.x.
 
