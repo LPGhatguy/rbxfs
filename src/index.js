@@ -34,6 +34,9 @@ try {
 	}
 } catch (error) {
 	console.log("Using default configuration...");
+	config = {
+		...defaultConfig
+	};
 }
 
 const vfs = new VFS(config);
