@@ -4,6 +4,7 @@ import { join, relative } from "path";
 import { watch } from "chokidar";
 
 import globPromise from "./glob-promise";
+import escapeForRegex from "./escape-for-regex";
 
 type ChokidarWatcher = Object;
 
@@ -19,13 +20,15 @@ export type RBXObject = {
 };
 
 export class VFS {
-	root: string;
+	rootObject: string;
+	rootDirectory: string;
 
 	_watcher: ?ChokidarWatcher;
 	_latestChanges: Map<string, ChangeEvent> = new Map();
 
-	constructor(root: string) {
-		this.root = root;
+	constructor(config: Object) {
+		this.rootDirectory = config.rootDirectory;
+		this.rootObject = config.rootObject;
 	}
 
 	_addChange(type: "change" | "delete", object: RBXObject): void {
@@ -37,7 +40,7 @@ export class VFS {
 			object
 		});
 
-		console.log("Added change for", object.name, timestamp);
+		console.log("Registered change for", object.name);
 	}
 
 	now(): number {
@@ -51,7 +54,7 @@ export class VFS {
 			return;
 		}
 
-		const watcher = this._watcher = watch(join(this.root, "**/*.lua"), {
+		const watcher = this._watcher = watch(join(this.rootDirectory, "**/*.lua"), {
 			ignoreInitial: true
 		});
 
@@ -78,7 +81,7 @@ export class VFS {
 	}
 
 	list(): Promise<RBXObject[]> {
-		return globPromise(join(this.root, "**/*.lua"))
+		return globPromise(join(this.rootDirectory, "**/*.lua"))
 			.then(filenames => filenames.map(name => this.fileToRBX(name)));
 	}
 
@@ -86,7 +89,7 @@ export class VFS {
 		let name = filename;
 		let type = "ModuleScript";
 
-		name = relative(this.root, filename);
+		name = relative(this.rootDirectory, filename);
 
 		if (filename.endsWith(".server.lua")) {
 			type = "Script";
@@ -99,6 +102,8 @@ export class VFS {
 		}
 
 		name = name.replace(/[\/\\]/g, ".");
+
+		name = this.rootObject + "." + name;
 
 		return {
 			type,
@@ -115,7 +120,14 @@ export class VFS {
 			suffix = ".client.lua";
 		}
 
-		return rbx.name
-			.replace(/\./g, "/") + suffix;
+		const replaceRoot = `^${ escapeForRegex(this.rootObject) }\\.?`;
+
+		const name = rbx.name
+			.replace(new RegExp(replaceRoot), "")
+			.replace(/\./g, "/");
+
+		const filename = join(this.rootDirectory, name) + suffix;
+
+		return filename;
 	}
 }

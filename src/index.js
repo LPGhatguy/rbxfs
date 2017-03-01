@@ -3,12 +3,40 @@
 // @flow
 
 import express from "express";
-import { createReadStream, createWriteStream } from "fs";
+import { createReadStream, createWriteStream, readFileSync } from "fs";
+import * as path from "path";
 
 import PROJECT from "../package";
 import { VFS } from "./vfs";
 
-const vfs = new VFS(process.cwd());
+const defaultConfig = {
+	rootObject: "",
+	rootDirectory: "."
+};
+
+let config: Object;
+
+try {
+	const configPath = path.join(process.cwd(), "rbxfs.json");
+	const configContents = readFileSync(configPath, "utf8");
+
+	try {
+		const configData = JSON.parse(configContents);
+
+		config = {
+			...defaultConfig,
+			...configData
+		};
+
+		console.log("Loaded configuration at", configPath);
+	} catch (error) {
+		console.error("Couldn't parse rbxfs.json:", error);
+	}
+} catch (error) {
+	console.log("Using default configuration...");
+}
+
+const vfs = new VFS(config);
 vfs.startWatching();
 
 const app = express();
