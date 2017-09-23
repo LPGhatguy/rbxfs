@@ -1,41 +1,59 @@
-#[macro_use]
-extern crate rouille;
+#![feature(plugin, decl_macro)]
+#![plugin(rocket_codegen)]
 
 #[macro_use]
 extern crate serde_derive;
 
 extern crate serde;
 extern crate serde_json;
+extern crate rocket;
+extern crate rocket_contrib;
+
+mod dom;
+mod dom_fs;
+
+use dom::DomNode;
+use dom_fs::LoadFromPath;
+
+use std::path::Path;
+
+use rocket_contrib::Json;
 
 #[derive(Serialize)]
-struct VersionResult {
-	version: String,
+struct SystemInfo {
+	server_version: String,
+	protocol_version: String,
+}
+
+#[get("/")]
+fn root() -> String {
+	"rbxfs is up and running!".to_string()
+}
+
+#[get("/rbxfs")]
+fn info() -> Json<SystemInfo> {
+	Json(SystemInfo {
+		server_version: "1.0.0".to_string(),
+		protocol_version: "1.0.0".to_string(),
+	})
 }
 
 fn main() {
-	println!("Listening on localhost:8001");
+	let root = dom::DomNode::load_from_path(Path::new("test-folder"));
 
-	rouille::start_server("localhost:8001", |request| {
-		router!(request,
-			(GET) (/) => {
-				rouille::Response::text("rbxfs is up and running!")
-			},
+	println!("{:?}", root);
 
-			(GET) (/version) => {
-				let result = serde_json::to_string(&VersionResult {
-					version: "0.3.0".to_string(),
-				}).unwrap();
+	let config = {
+		use rocket::config::{Config, Environment};
 
-				rouille::Response::text(result)
-			},
+		Config::build(Environment::Staging)
+			.address("localhost")
+			.port(8001)
+			.finalize()
+			.unwrap()
+	};
 
-			(GET) (/read/{object_name: String}) => {
-				println!("Read the object {}", object_name);
-
-				rouille::Response::text("got it.")
-			},
-
-			_ => rouille::Response::empty_404()
-		)
-	});
+	rocket::custom(config, true)
+		.mount("/", routes![root, info])
+		.launch();
 }

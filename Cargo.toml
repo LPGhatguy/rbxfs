@@ -4,7 +4,13 @@ version = "0.1.0"
 authors = ["lgreathouse <me@lpghatguy.com>"]
 
 [dependencies]
-rouille = "1.0.3"
+rocket = "0.3.2"
+rocket_codegen = "0.3.2"
 serde = "1.0"
 serde_derive = "1.0"
 serde_json = "1.0"
+
+[dependencies.rocket_contrib]
+version = "0.3.2"
+default-features = false
+features = ["json"]
