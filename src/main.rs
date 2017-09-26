@@ -15,7 +15,7 @@ mod dom_fs;
 use dom::DomNode;
 use dom_fs::LoadFromPath;
 
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use rocket_contrib::Json;
 
@@ -25,16 +25,49 @@ struct SystemInfo {
 	protocol_version: String,
 }
 
+#[derive(Serialize)]
+struct DomResponse {
+	ok: bool,
+}
+
 #[get("/")]
 fn root() -> String {
 	"rbxfs is up and running!".to_string()
 }
 
-#[get("/rbxfs")]
+#[get("/fs/info")]
 fn info() -> Json<SystemInfo> {
 	Json(SystemInfo {
 		server_version: "1.0.0".to_string(),
 		protocol_version: "1.0.0".to_string(),
+	})
+}
+
+#[get("/fs/changed-since/<time>")]
+fn changed_since(time: f64) -> Json<DomResponse> {
+	Json(DomResponse {
+		ok: true
+	})
+}
+
+#[get("/fs/read/<path..>")]
+fn read(path: PathBuf) -> Json<DomResponse> {
+	Json(DomResponse {
+		ok: true
+	})
+}
+
+#[post("/fs/write/<path..>")]
+fn write(path: PathBuf) -> Json<DomResponse> {
+	Json(DomResponse {
+		ok: true
+	})
+}
+
+#[post("/fs/delete/<path..>")]
+fn delete(path: PathBuf) -> Json<DomResponse> {
+	Json(DomResponse {
+		ok: true
 	})
 }
 
@@ -54,6 +87,6 @@ fn main() {
 	};
 
 	rocket::custom(config, true)
-		.mount("/", routes![root, info])
+		.mount("/", routes![root, info, changed_since, read, write, delete])
 		.launch();
 }
