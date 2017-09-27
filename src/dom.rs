@@ -123,7 +123,7 @@ impl Dom {
 	pub fn current_time(&self) -> f64 {
 		let elapsed = self.start_time.elapsed();
 
-		elapsed.as_secs() as f64 + (elapsed.subsec_nanos() as f64) / 1_000_000.0
+		elapsed.as_secs() as f64 + (elapsed.subsec_nanos() as f64 / 1_000_000_000.0)
 	}
 
 	pub fn changes_since(&self, timestamp: f64) -> &[DomChange] {

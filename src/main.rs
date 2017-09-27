@@ -19,12 +19,37 @@ use dom::Dom;
 use std::path::{Path, PathBuf};
 use std::sync::mpsc::{Sender, Receiver};
 use std::sync::mpsc;
+use std::sync::{Arc, Mutex};
 use std::thread;
 use std::time::Duration;
+use std::ops::Deref;
 
 use notify::{RecommendedWatcher, Watcher, RecursiveMode};
 
 use rocket_contrib::Json;
+use rocket::http::Status;
+use rocket::request::{self, FromRequest};
+use rocket::{Request, State, Outcome};
+
+struct DomState(pub Arc<Mutex<Dom>>);
+
+impl<'a, 'r> FromRequest<'a, 'r> for DomState {
+	type Error = ();
+
+	fn from_request(request: &'a Request<'r>) -> request::Outcome<Self, ()> {
+		let state = request.guard::<State<DomState>>()?;
+
+		Outcome::Success(DomState(state.0.clone()))
+	}
+}
+
+impl Deref for DomState {
+	type Target = Arc<Mutex<Dom>>;
+
+	fn deref(&self) -> &Self::Target {
+		&self.0
+	}
+}
 
 #[derive(Serialize)]
 struct SystemInfo {
@@ -62,9 +87,10 @@ fn info() -> Json<SystemInfo> {
 }
 
 #[get("/fs/time")]
-fn time() -> Json<TimeResponse> {
+fn time(dom: DomState) -> Json<TimeResponse> {
+	let dom = dom.lock().unwrap();
 	Json(TimeResponse {
-		time: 0.0
+		time: dom.current_time(),
 	})
 }
 
@@ -99,8 +125,12 @@ fn delete(path: PathBuf) -> Json<DomResponse> {
 fn main() {
 	let fs_root = Path::new("test-folder");
 
-	let mut dom = Dom::new_from_path(fs_root)
-		.expect("Failed to load initial DOM");
+	let dom = {
+		let dom = Dom::new_from_path(fs_root)
+			.expect("Failed to load initial DOM");
+
+		Arc::new(Mutex::new(dom))
+	};
 
 	println!("{:?}", dom);
 
@@ -122,14 +152,21 @@ fn main() {
 	watcher.watch(fs_root, RecursiveMode::Recursive)
 		.expect("Unable to watch fs_root!");
 
-	thread::spawn(move || {
-		rocket::custom(config, true)
-			.mount("/", routes![root, info, time, changed_since, read, write, delete])
-			.launch();
-	});
+	{
+		let dom = dom.clone();
+
+		thread::spawn(move || {
+			rocket::custom(config, true)
+				.manage(DomState(dom))
+				.mount("/", routes![root, info, time, changed_since, read, write, delete])
+				.launch();
+		});
+	}
 
 	loop {
 		let event = rx.recv().unwrap();
+
+		let mut dom = dom.lock().unwrap();
 		dom.handle_event(&event);
 	}
 }
