@@ -1,7 +1,8 @@
-use std::path::Path;
+use std::path::{Component, Path};
 use std::fs::{self, File};
 use std::io::Read;
 use std::time::Instant;
+use std::borrow::{Borrow, Cow};
 
 use notify::DebouncedEvent;
 
@@ -60,10 +61,42 @@ fn load_node_from_path(path: &Path) -> Result<DomNode, LoadError> {
 			Err(LoadError::UnknownObject)
 		}
 	} else if path.is_dir() {
-		Ok(DomNode::new("", RobloxInstance::Unknown))
+		let instance = dom_node::RobloxFolder {};
+		let mut node = DomNode::new(&file_name, RobloxInstance::Folder(instance));
+
+		let children = match fs::read_dir(path) {
+			Ok(v) => v,
+			Err(_) => {
+				return Err(LoadError::FileReadFailure)
+			},
+		};
+
+		for child in children {
+			let path = child.unwrap().path();
+			let child_node = load_node_from_path(path.as_path())?;
+
+			node.children.insert(child_node.name.clone(), child_node);
+		}
+
+		Ok(node)
 	} else {
 		unreachable!()
 	}
+}
+
+pub fn path_to_dom_path(path: &Path) -> Vec<Cow<str>> {
+	path
+		.components()
+		.filter_map(|component| {
+			match component {
+				Component::Normal(piece) => {
+					piece.to_str()
+				},
+				_ => None,
+			}
+		})
+		.map(Cow::from)
+		.collect::<Vec<_>>()
 }
 
 #[derive(Debug)]
@@ -78,7 +111,7 @@ pub enum LoadError {
 	DirectoryReadFailure,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Serialize)]
 pub enum DomChangeDetails {
 	Created {
 		path: Vec<String>,
@@ -96,7 +129,7 @@ pub enum DomChangeDetails {
 	Unknown, // temp
 }
 
-#[derive(Debug)]
+#[derive(Debug, Serialize)]
 pub struct DomChange {
 	timestamp: f64,
 	details: DomChangeDetails,
@@ -118,6 +151,29 @@ impl Dom {
 			changes: Vec::new(),
 			start_time: Instant::now(),
 		})
+	}
+
+	pub fn get_root(&self) -> &DomNode {
+		&self.root_node
+	}
+
+	pub fn navigate<'a>(&'a self, path: &[Cow<str>]) -> Option<&'a DomNode> {
+		let mut location = &self.root_node;
+
+		for node in path {
+			let borrowed: &str = node.borrow();
+
+			match location.children.get(borrowed) {
+				Some(v) => {
+					location = v;
+				},
+				None => {
+					return None;
+				},
+			}
+		}
+
+		Some(location)
 	}
 
 	pub fn current_time(&self) -> f64 {
@@ -145,24 +201,32 @@ impl Dom {
 					timestamp: now,
 					details: DomChangeDetails::Unknown,
 				});
+
+				// TODO: create node
 			},
 			DebouncedEvent::Write(ref path) => {
 				self.changes.push(DomChange {
 					timestamp: now,
 					details: DomChangeDetails::Unknown,
 				});
+
+				// todo: create/update node
 			},
 			DebouncedEvent::Remove(ref path) => {
 				self.changes.push(DomChange {
 					timestamp: now,
 					details: DomChangeDetails::Unknown,
 				});
+
+				// todo: remove node
 			},
 			DebouncedEvent::Rename(ref from_path, ref to_path) => {
 				self.changes.push(DomChange {
 					timestamp: now,
 					details: DomChangeDetails::Unknown,
 				});
+
+				// todo: move node
 			},
 			_ => {},
 		}

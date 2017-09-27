@@ -13,10 +13,10 @@ extern crate notify;
 mod dom_node;
 mod dom;
 
-use dom_node::DomNode;
-use dom::Dom;
+use dom_node::{DomNode};
+use dom::{Dom, DomChange, path_to_dom_path};
 
-use std::path::{Path, PathBuf};
+use std::path::{Component, Path, PathBuf};
 use std::sync::mpsc::{Sender, Receiver};
 use std::sync::mpsc;
 use std::sync::{Arc, Mutex};
@@ -63,14 +63,20 @@ struct DomResponse {
 }
 
 #[derive(Debug, Serialize)]
-struct DomChange {
-	timestamp: f64,
-	name: String, // maybe pathbuf?
+struct TimeResponse {
+	time: f64,
 }
 
 #[derive(Debug, Serialize)]
-struct TimeResponse {
+struct ChangedSinceResponse<'a> {
 	time: f64,
+	changes: &'a [DomChange],
+}
+
+#[derive(Debug, Serialize)]
+struct ReadAllResponse<'a> {
+	time: f64,
+	root: &'a DomNode,
 }
 
 #[get("/")]
@@ -95,28 +101,62 @@ fn time(dom: DomState) -> Json<TimeResponse> {
 }
 
 #[get("/fs/changed-since/<time>")]
-fn changed_since(time: f64) -> Json<DomResponse> {
-	Json(DomResponse {
-		ok: true
-	})
+fn changed_since(dom: DomState, time: f64) -> String {
+	let dom = dom.lock().unwrap();
+
+	let changes = dom.changes_since(time);
+	let time = dom.current_time();
+
+	let response = ChangedSinceResponse {
+		changes,
+		time,
+	};
+
+	let result = serde_json::to_string(&response).unwrap();
+
+	result
+}
+
+#[get("/fs/read-all")]
+fn read_all(dom: DomState) -> String {
+	let dom = dom.lock().unwrap();
+
+	let root = dom.get_root();
+	let time = dom.current_time();
+
+	let response = ReadAllResponse {
+		root,
+		time,
+	};
+
+	let result = serde_json::to_string(&response).unwrap();
+
+	result
 }
 
 #[get("/fs/read/<path..>")]
-fn read(path: PathBuf) -> Json<DomResponse> {
-	Json(DomResponse {
-		ok: true
-	})
+fn read(dom: DomState, path: PathBuf) -> String {
+	let dom = dom.lock().unwrap();
+
+	let path = path_to_dom_path(path.as_path());
+	let node = dom.navigate(path.as_slice());
+
+	println!("Got node: {:?}", node);
+
+	let result = serde_json::to_string(&node).unwrap();
+
+	result
 }
 
 #[post("/fs/write/<path..>")]
-fn write(path: PathBuf) -> Json<DomResponse> {
+fn write(dom: DomState, path: PathBuf) -> Json<DomResponse> {
 	Json(DomResponse {
 		ok: true
 	})
 }
 
 #[post("/fs/delete/<path..>")]
-fn delete(path: PathBuf) -> Json<DomResponse> {
+fn delete(dom: DomState, path: PathBuf) -> Json<DomResponse> {
 	Json(DomResponse {
 		ok: true
 	})
@@ -129,10 +169,10 @@ fn main() {
 		let dom = Dom::new_from_path(fs_root)
 			.expect("Failed to load initial DOM");
 
+		println!("{:?}", dom);
+
 		Arc::new(Mutex::new(dom))
 	};
-
-	println!("{:?}", dom);
 
 	let config = {
 		use rocket::config::{Config, Environment};
@@ -158,7 +198,7 @@ fn main() {
 		thread::spawn(move || {
 			rocket::custom(config, true)
 				.manage(DomState(dom))
-				.mount("/", routes![root, info, time, changed_since, read, write, delete])
+				.mount("/", routes![root, info, time, changed_since, read_all, read, write, delete])
 				.launch();
 		});
 	}
