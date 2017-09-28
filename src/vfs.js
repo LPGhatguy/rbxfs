@@ -32,6 +32,9 @@ export class VFS {
 	}
 
 	_addChange(type: "change" | "delete", object: RBXObject): void {
+		if (object == null) {
+			return;
+		}
 		const timestamp = this.now();
 
 		this._latestChanges.set(object.name, {
@@ -82,7 +85,7 @@ export class VFS {
 
 	list(): Promise<RBXObject[]> {
 		return globPromise(join(this.rootDirectory, "**/*.lua"))
-			.then(filenames => filenames.map(name => this.fileToRBX(name)));
+			.then(filenames => filenames.map(name => this.fileToRBX(name)).filter(obj => obj != null));
 	}
 
 	fileToRBX(filename: string): RBXObject {
@@ -99,6 +102,10 @@ export class VFS {
 			name = name.replace(/\.client\.lua$/, "");
 		} else {
 			name = name.replace(/\.lua$/, "");
+		}
+
+		if (name.includes(".")) {
+			return null;
 		}
 
 		name = name.replace(/[\/\\]/g, ".");

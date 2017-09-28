@@ -9,6 +9,8 @@ import * as path from "path";
 import PROJECT from "../package";
 import { VFS } from "./vfs";
 
+console.log("??????????");
+
 const defaultConfig = {
 	rootObject: "",
 	rootDirectory: "."
