@@ -94,17 +94,23 @@ export class VFS {
 
 		name = relative(this.rootDirectory, filename);
 
-		if (filename.endsWith(".server.lua")) {
-			type = "Script";
-			name = name.replace(/\.server\.lua$/, "");
-		} else if (filename.endsWith(".client.lua")) {
-			type = "LocalScript";
-			name = name.replace(/\.client\.lua$/, "");
-		} else {
-			name = name.replace(/\.lua$/, "");
-		}
+		let serverMatch = /^([^\.]+)\.server\.lua$/.exec(name);
+		let clientMatch = /^([^\.]+)\.client\.lua$/.exec(name);
+		let moduleMatch = /^([^\.]+)\.lua$/.exec(name);
 
-		if (name.includes(".")) {
+		if (serverMatch) {
+			type = "Script";
+			name = serverMatch[1];
+		}
+		else if (clientMatch) {
+			type = "LocalScript";
+			name = clientMatch[1];
+		}
+		else if (moduleMatch) {
+			type = "ModuleScript";
+			name = moduleMatch[1];
+		}
+		else {
 			return null;
 		}
 
