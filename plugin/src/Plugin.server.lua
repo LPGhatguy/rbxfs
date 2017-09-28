@@ -4,6 +4,22 @@ end
 
 local HttpService = game:GetService("HttpService")
 
+local function create(rbx, domNode)
+	for name, child in pairs(domNode.children) do
+		local instance = child.instance
+		local childRbx = Instance.new(instance.type)
+
+		if instance.source then
+			childRbx.Source = instance.source
+		end
+
+		childRbx.Name = name
+		childRbx.Parent = rbx
+
+		create(childRbx, child)
+	end
+end
+
 local function main()
 	local address = "localhost"
 	local port = 8001
@@ -29,6 +45,28 @@ local function main()
 			local result = HttpService:GetAsync(readAllUrl)
 
 			print("download:", result)
+
+			local value = HttpService:JSONDecode(result)
+
+			create(game.Workspace, value.root)
+		end)
+
+	toolbar:CreateButton("Write Test", "Write (Testing)", "")
+		.Click:Connect(function()
+			local writeUrl = ("%s/write"):format(remote)
+			local body = HttpService:JSONEncode({
+				{
+					path = {"test"},
+					instance = {
+						type = "ModuleScript",
+						source = "-- hi mom"
+					}
+				}
+			})
+
+			local result = HttpService:PostAsync(writeUrl, body)
+
+			print("write result:", result)
 		end)
 end
 

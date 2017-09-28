@@ -21,7 +21,8 @@ impl DomNode {
 	}
 }
 
-#[derive(Debug, PartialEq, Eq, Serialize)]
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(tag = "type")]
 pub enum RobloxInstance {
 	Folder(RobloxFolder),
 	ModuleScript(RobloxModuleScript),
@@ -30,21 +31,21 @@ pub enum RobloxInstance {
 	Unknown,
 }
 
-#[derive(Debug, PartialEq, Eq, Serialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct RobloxFolder {
 }
 
-#[derive(Debug, PartialEq, Eq, Serialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct RobloxModuleScript {
 	pub source: String,
 }
 
-#[derive(Debug, PartialEq, Eq, Serialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct RobloxServerScript {
 	pub source: String,
 }
 
-#[derive(Debug, PartialEq, Eq, Serialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct RobloxLocalScript {
 	pub source: String,
 }

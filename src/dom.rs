@@ -1,4 +1,4 @@
-use std::path::{Component, Path};
+use std::path::{Component, Path, PathBuf};
 use std::fs::{self, File};
 use std::io::Read;
 use std::time::Instant;
@@ -84,7 +84,7 @@ fn load_node_from_path(path: &Path) -> Result<DomNode, LoadError> {
 	}
 }
 
-pub fn path_to_dom_path(path: &Path) -> Vec<Cow<str>> {
+pub fn path_to_dom_path(path: &Path) -> Vec<&str> {
 	path
 		.components()
 		.filter_map(|component| {
@@ -95,7 +95,13 @@ pub fn path_to_dom_path(path: &Path) -> Vec<Cow<str>> {
 				_ => None,
 			}
 		})
-		.map(Cow::from)
+		.collect::<Vec<_>>()
+}
+
+pub fn path_to_string_path(path: &Path) -> Vec<String> {
+	path_to_dom_path(path)
+		.iter()
+		.map(|v| v.to_string())
 		.collect::<Vec<_>>()
 }
 
@@ -112,27 +118,9 @@ pub enum LoadError {
 }
 
 #[derive(Debug, Serialize)]
-pub enum DomChangeDetails {
-	Created {
-		path: Vec<String>,
-	},
-	Deleted {
-		path: Vec<String>,
-	},
-	Changed {
-		path: Vec<String>,
-	},
-	Renamed {
-		from: Vec<String>,
-		to: Vec<String>,
-	},
-	Unknown, // temp
-}
-
-#[derive(Debug, Serialize)]
 pub struct DomChange {
 	timestamp: f64,
-	details: DomChangeDetails,
+	path: Vec<String>,
 }
 
 #[derive(Debug)]
@@ -140,6 +128,7 @@ pub struct Dom {
 	root_node: DomNode,
 	changes: Vec<DomChange>,
 	start_time: Instant,
+	path: PathBuf,
 }
 
 impl Dom {
@@ -150,6 +139,7 @@ impl Dom {
 			root_node,
 			changes: Vec::new(),
 			start_time: Instant::now(),
+			path: path.canonicalize().unwrap(),
 		})
 	}
 
@@ -157,13 +147,11 @@ impl Dom {
 		&self.root_node
 	}
 
-	pub fn navigate<'a>(&'a self, path: &[Cow<str>]) -> Option<&'a DomNode> {
+	pub fn navigate<'a>(&'a self, path: &[&str]) -> Option<&'a DomNode> {
 		let mut location = &self.root_node;
 
 		for node in path {
-			let borrowed: &str = node.borrow();
-
-			match location.children.get(borrowed) {
+			match location.children.get(*node) {
 				Some(v) => {
 					location = v;
 				},
@@ -174,6 +162,36 @@ impl Dom {
 		}
 
 		Some(location)
+	}
+
+	pub fn write(&mut self, path: &[&str], instance: RobloxInstance) {
+		let leading_path = &path[..path.len() - 1];
+		let leaf_node_name = &path[path.len() - 1];
+
+		let mut current_node = &mut self.root_node;
+
+		for node_name in leading_path {
+			let node = current_node;
+
+			match node.children.get_mut(*node_name) {
+				Some(child_node) => {
+					current_node = child_node;
+				},
+				None => {
+					println!("Failed to write because we couldn't find a node.");
+					return;
+				},
+			}
+		}
+
+		if let Some(child) = current_node.children.get_mut(*leaf_node_name) {
+			child.instance = instance;
+
+			return;
+		}
+
+		let child = DomNode::new(leaf_node_name, instance);
+		current_node.add_child(child);
 	}
 
 	pub fn current_time(&self) -> f64 {
@@ -192,38 +210,59 @@ impl Dom {
 		self.changes.as_slice()
 	}
 
+	// this breaks on symlinks and does FS reads it shouldn't.
+	// this should use Cow<Path>
+	fn canon_path(&self, path: &Path) -> PathBuf {
+		let canonical = path.canonicalize().unwrap();
+		canonical.strip_prefix(&self.path).unwrap().to_path_buf()
+	}
+
 	pub fn handle_event(&mut self, event: &DebouncedEvent) {
 		let now = self.current_time();
 
 		match *event {
 			DebouncedEvent::Create(ref path) => {
+				let path = self.canon_path(&path);
+
 				self.changes.push(DomChange {
 					timestamp: now,
-					details: DomChangeDetails::Unknown,
+					path: path_to_string_path(&path),
 				});
 
 				// TODO: create node
 			},
 			DebouncedEvent::Write(ref path) => {
+				let path = self.canon_path(&path);
+
 				self.changes.push(DomChange {
 					timestamp: now,
-					details: DomChangeDetails::Unknown,
+					path: path_to_string_path(&path),
 				});
 
 				// todo: create/update node
 			},
 			DebouncedEvent::Remove(ref path) => {
+				let path = self.canon_path(&path);
+
 				self.changes.push(DomChange {
 					timestamp: now,
-					details: DomChangeDetails::Unknown,
+					path: path_to_string_path(&path),
 				});
 
 				// todo: remove node
 			},
 			DebouncedEvent::Rename(ref from_path, ref to_path) => {
+				let from_path = self.canon_path(&from_path);
+				let to_path = self.canon_path(&to_path);
+
 				self.changes.push(DomChange {
 					timestamp: now,
-					details: DomChangeDetails::Unknown,
+					path: path_to_string_path(&from_path),
+				});
+
+				self.changes.push(DomChange {
+					timestamp: now,
+					path: path_to_string_path(&to_path),
 				});
 
 				// todo: move node

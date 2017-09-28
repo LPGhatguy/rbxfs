@@ -64,18 +64,18 @@ struct DomResponse {
 
 #[derive(Debug, Serialize)]
 struct TimeResponse {
-	time: f64,
+	now: f64,
 }
 
 #[derive(Debug, Serialize)]
 struct ChangedSinceResponse<'a> {
-	time: f64,
+	now: f64,
 	changes: &'a [DomChange],
 }
 
 #[derive(Debug, Serialize)]
 struct ReadAllResponse<'a> {
-	time: f64,
+	now: f64,
 	root: &'a DomNode,
 }
 
@@ -92,11 +92,11 @@ fn info() -> Json<SystemInfo> {
 	})
 }
 
-#[get("/fs/time")]
-fn time(dom: DomState) -> Json<TimeResponse> {
+#[get("/fs/now")]
+fn now(dom: DomState) -> Json<TimeResponse> {
 	let dom = dom.lock().unwrap();
 	Json(TimeResponse {
-		time: dom.current_time(),
+		now: dom.current_time(),
 	})
 }
 
@@ -105,11 +105,11 @@ fn changed_since(dom: DomState, time: f64) -> String {
 	let dom = dom.lock().unwrap();
 
 	let changes = dom.changes_since(time);
-	let time = dom.current_time();
+	let now = dom.current_time();
 
 	let response = ChangedSinceResponse {
 		changes,
-		time,
+		now,
 	};
 
 	let result = serde_json::to_string(&response).unwrap();
@@ -122,11 +122,11 @@ fn read_all(dom: DomState) -> String {
 	let dom = dom.lock().unwrap();
 
 	let root = dom.get_root();
-	let time = dom.current_time();
+	let now = dom.current_time();
 
 	let response = ReadAllResponse {
 		root,
-		time,
+		now,
 	};
 
 	let result = serde_json::to_string(&response).unwrap();
@@ -139,27 +139,13 @@ fn read(dom: DomState, path: PathBuf) -> String {
 	let dom = dom.lock().unwrap();
 
 	let path = path_to_dom_path(path.as_path());
-	let node = dom.navigate(path.as_slice());
+	let node = dom.navigate(&path);
 
 	println!("Got node: {:?}", node);
 
 	let result = serde_json::to_string(&node).unwrap();
 
 	result
-}
-
-#[post("/fs/write/<path..>")]
-fn write(dom: DomState, path: PathBuf) -> Json<DomResponse> {
-	Json(DomResponse {
-		ok: true
-	})
-}
-
-#[post("/fs/delete/<path..>")]
-fn delete(dom: DomState, path: PathBuf) -> Json<DomResponse> {
-	Json(DomResponse {
-		ok: true
-	})
 }
 
 fn main() {
@@ -198,7 +184,7 @@ fn main() {
 		thread::spawn(move || {
 			rocket::custom(config, true)
 				.manage(DomState(dom))
-				.mount("/", routes![root, info, time, changed_since, read_all, read, write, delete])
+				.mount("/", routes![root, info, now, changed_since, read_all, read])
 				.launch();
 		});
 	}
