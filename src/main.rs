@@ -12,6 +12,7 @@ extern crate notify;
 
 mod dom_node;
 mod dom;
+mod path_ext;
 
 use dom_node::{DomNode};
 use dom::{Dom, DomChange, path_to_dom_path};
@@ -52,14 +53,9 @@ impl Deref for DomState {
 }
 
 #[derive(Serialize)]
-struct SystemInfo {
+struct InfoResponse {
 	server_version: String,
 	protocol_version: String,
-}
-
-#[derive(Serialize)]
-struct DomResponse {
-	ok: bool,
 }
 
 #[derive(Debug, Serialize)]
@@ -85,8 +81,8 @@ fn root() -> String {
 }
 
 #[get("/fs/info")]
-fn info() -> Json<SystemInfo> {
-	Json(SystemInfo {
+fn info() -> Json<InfoResponse> {
+	Json(InfoResponse {
 		server_version: "1.0.0".to_string(),
 		protocol_version: "1.0.0".to_string(),
 	})

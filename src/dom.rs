@@ -7,6 +7,7 @@ use std::borrow::{Borrow, Cow};
 use notify::DebouncedEvent;
 
 use dom_node::{self, DomNode, RobloxInstance};
+use path_ext;
 
 fn read_file(path: &Path) -> Option<String> {
 	let mut f = match File::open(path) {
@@ -139,7 +140,7 @@ impl Dom {
 			root_node,
 			changes: Vec::new(),
 			start_time: Instant::now(),
-			path: path.canonicalize().unwrap(),
+			path,
 		})
 	}
 
@@ -210,11 +211,8 @@ impl Dom {
 		self.changes.as_slice()
 	}
 
-	// this breaks on symlinks and does FS reads it shouldn't.
-	// this should use Cow<Path>
-	fn canon_path(&self, path: &Path) -> PathBuf {
-		let canonical = path.canonicalize().unwrap();
-		canonical.strip_prefix(&self.path).unwrap().to_path_buf()
+	fn canon_path<T: AsRef<Path>>(&self, path: T) -> &Path {
+		canonical.as_ref().strip_prefix(&self.path).unwrap()
 	}
 
 	pub fn handle_event(&mut self, event: &DebouncedEvent) {
@@ -222,12 +220,17 @@ impl Dom {
 
 		match *event {
 			DebouncedEvent::Create(ref path) => {
-				let path = self.canon_path(&path);
+				let string_path = path_to_string_path(&self.canon_path(&path));
 
 				self.changes.push(DomChange {
 					timestamp: now,
-					path: path_to_string_path(&path),
+					path: string_path.clone(),
 				});
+
+				let node = load_node_from_path(&path)
+					.unwrap();
+
+				println!("new node: {:?}", node);
 
 				// TODO: create node
 			},
