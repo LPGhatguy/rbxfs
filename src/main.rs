@@ -13,12 +13,13 @@ extern crate notify;
 mod dom_node;
 mod dom;
 mod path_ext;
+mod path2;
 
 use dom_node::{DomNode};
-use dom::{Dom, DomChange, path_to_dom_path};
+use dom::{Dom, DomChange};
+use path_ext::{RbxPath};
 
-use std::path::{Component, Path, PathBuf};
-use std::sync::mpsc::{Sender, Receiver};
+use std::path::{PathBuf};
 use std::sync::mpsc;
 use std::sync::{Arc, Mutex};
 use std::thread;
@@ -28,9 +29,10 @@ use std::ops::Deref;
 use notify::{RecommendedWatcher, Watcher, RecursiveMode};
 
 use rocket_contrib::Json;
-use rocket::http::Status;
 use rocket::request::{self, FromRequest};
 use rocket::{Request, State, Outcome};
+
+const USAGE: &'static str = "usage: rbxfs <dir>";
 
 struct DomState(pub Arc<Mutex<Dom>>);
 
@@ -131,10 +133,9 @@ fn read_all(dom: DomState) -> String {
 }
 
 #[get("/fs/read/<path..>")]
-fn read(dom: DomState, path: PathBuf) -> String {
+fn read(dom: DomState, path: RbxPath) -> String {
 	let dom = dom.lock().unwrap();
 
-	let path = path_to_dom_path(path.as_path());
 	let node = dom.navigate(&path);
 
 	println!("Got node: {:?}", node);
@@ -145,10 +146,24 @@ fn read(dom: DomState, path: PathBuf) -> String {
 }
 
 fn main() {
-	let fs_root = Path::new("test-folder");
+	let args = std::env::args().collect::<Vec<String>>();
+
+	let input_root = match args.get(1) {
+		Some(v) => v,
+		None => {
+			println!("{}", USAGE);
+			std::process::exit(0);
+		}
+	};
+
+	let mut fs_root = PathBuf::from(input_root);
+
+	if fs_root.is_relative() {
+		fs_root = std::env::current_dir().unwrap().join(fs_root);
+	}
 
 	let dom = {
-		let dom = Dom::new_from_path(fs_root)
+		let dom = Dom::new_from_path(&fs_root)
 			.expect("Failed to load initial DOM");
 
 		println!("{:?}", dom);

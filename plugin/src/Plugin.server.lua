@@ -1,4 +1,4 @@
-if (not plugin) then
+if not plugin then
 	return
 end
 
@@ -49,24 +49,6 @@ local function main()
 			local value = HttpService:JSONDecode(result)
 
 			create(game.Workspace, value.root)
-		end)
-
-	toolbar:CreateButton("Write Test", "Write (Testing)", "")
-		.Click:Connect(function()
-			local writeUrl = ("%s/write"):format(remote)
-			local body = HttpService:JSONEncode({
-				{
-					path = {"test"},
-					instance = {
-						type = "ModuleScript",
-						source = "-- hi mom"
-					}
-				}
-			})
-
-			local result = HttpService:PostAsync(writeUrl, body)
-
-			print("write result:", result)
 		end)
 end
 

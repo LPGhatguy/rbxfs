@@ -1,13 +1,12 @@
-use std::path::{Component, Path, PathBuf};
+use std::path::{Path, PathBuf};
 use std::fs::{self, File};
 use std::io::Read;
 use std::time::Instant;
-use std::borrow::{Borrow, Cow};
 
 use notify::DebouncedEvent;
 
 use dom_node::{self, DomNode, RobloxInstance};
-use path_ext;
+use path_ext::{self, RbxPath};
 
 fn read_file(path: &Path) -> Option<String> {
 	let mut f = match File::open(path) {
@@ -81,29 +80,8 @@ fn load_node_from_path(path: &Path) -> Result<DomNode, LoadError> {
 
 		Ok(node)
 	} else {
-		unreachable!()
+		Err(LoadError::DidNotExist)
 	}
-}
-
-pub fn path_to_dom_path(path: &Path) -> Vec<&str> {
-	path
-		.components()
-		.filter_map(|component| {
-			match component {
-				Component::Normal(piece) => {
-					piece.to_str()
-				},
-				_ => None,
-			}
-		})
-		.collect::<Vec<_>>()
-}
-
-pub fn path_to_string_path(path: &Path) -> Vec<String> {
-	path_to_dom_path(path)
-		.iter()
-		.map(|v| v.to_string())
-		.collect::<Vec<_>>()
 }
 
 #[derive(Debug)]
@@ -116,12 +94,15 @@ pub enum LoadError {
 
 	/// Couldn't read from one or more directories
 	DirectoryReadFailure,
+
+	/// Something we tried to access didn't exist!
+	DidNotExist,
 }
 
 #[derive(Debug, Serialize)]
 pub struct DomChange {
 	timestamp: f64,
-	path: Vec<String>,
+	path: RbxPath,
 }
 
 #[derive(Debug)]
@@ -140,7 +121,7 @@ impl Dom {
 			root_node,
 			changes: Vec::new(),
 			start_time: Instant::now(),
-			path,
+			path: path.to_path_buf(),
 		})
 	}
 
@@ -148,13 +129,14 @@ impl Dom {
 		&self.root_node
 	}
 
-	pub fn navigate<'a>(&'a self, path: &[&str]) -> Option<&'a DomNode> {
-		let mut location = &self.root_node;
+	pub fn navigate<'a>(&'a self, path: &RbxPath) -> Option<&'a DomNode> {
+		let &RbxPath(ref components) = path;
+		let mut current_node = &self.root_node;
 
-		for node in path {
-			match location.children.get(*node) {
-				Some(v) => {
-					location = v;
+		for node_name in components {
+			match current_node.children.get(node_name) {
+				Some(child_node) => {
+					current_node = child_node;
 				},
 				None => {
 					return None;
@@ -162,7 +144,7 @@ impl Dom {
 			}
 		}
 
-		Some(location)
+		Some(current_node)
 	}
 
 	pub fn write(&mut self, path: &[&str], instance: RobloxInstance) {
@@ -211,20 +193,16 @@ impl Dom {
 		self.changes.as_slice()
 	}
 
-	fn canon_path<T: AsRef<Path>>(&self, path: T) -> &Path {
-		canonical.as_ref().strip_prefix(&self.path).unwrap()
-	}
-
 	pub fn handle_event(&mut self, event: &DebouncedEvent) {
 		let now = self.current_time();
 
 		match *event {
 			DebouncedEvent::Create(ref path) => {
-				let string_path = path_to_string_path(&self.canon_path(&path));
+				let rbx_path = path_ext::path_to_rbx_path(&self.path, path);
 
 				self.changes.push(DomChange {
 					timestamp: now,
-					path: string_path.clone(),
+					path: rbx_path,
 				});
 
 				let node = load_node_from_path(&path)
@@ -234,42 +212,42 @@ impl Dom {
 
 				// TODO: create node
 			},
-			DebouncedEvent::Write(ref path) => {
-				let path = self.canon_path(&path);
+			// DebouncedEvent::Write(ref path) => {
+			// 	let path = self.canon_path(&path);
 
-				self.changes.push(DomChange {
-					timestamp: now,
-					path: path_to_string_path(&path),
-				});
+			// 	self.changes.push(DomChange {
+			// 		timestamp: now,
+			// 		path: path_to_string_path(&path),
+			// 	});
 
-				// todo: create/update node
-			},
-			DebouncedEvent::Remove(ref path) => {
-				let path = self.canon_path(&path);
+			// 	// todo: create/update node
+			// },
+			// DebouncedEvent::Remove(ref path) => {
+			// 	let path = self.canon_path(&path);
 
-				self.changes.push(DomChange {
-					timestamp: now,
-					path: path_to_string_path(&path),
-				});
+			// 	self.changes.push(DomChange {
+			// 		timestamp: now,
+			// 		path: path_to_string_path(&path),
+			// 	});
 
-				// todo: remove node
-			},
-			DebouncedEvent::Rename(ref from_path, ref to_path) => {
-				let from_path = self.canon_path(&from_path);
-				let to_path = self.canon_path(&to_path);
+			// 	// todo: remove node
+			// },
+			// DebouncedEvent::Rename(ref from_path, ref to_path) => {
+			// 	let from_path = self.canon_path(&from_path);
+			// 	let to_path = self.canon_path(&to_path);
 
-				self.changes.push(DomChange {
-					timestamp: now,
-					path: path_to_string_path(&from_path),
-				});
+			// 	self.changes.push(DomChange {
+			// 		timestamp: now,
+			// 		path: path_to_string_path(&from_path),
+			// 	});
 
-				self.changes.push(DomChange {
-					timestamp: now,
-					path: path_to_string_path(&to_path),
-				});
+			// 	self.changes.push(DomChange {
+			// 		timestamp: now,
+			// 		path: path_to_string_path(&to_path),
+			// 	});
 
-				// todo: move node
-			},
+			// 	// todo: move node
+			// },
 			_ => {},
 		}
 
