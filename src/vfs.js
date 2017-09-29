@@ -85,7 +85,10 @@ export class VFS {
 
 	list(): Promise<RBXObject[]> {
 		return globPromise(join(this.rootDirectory, "**/*.lua"))
-			.then(filenames => filenames.map(name => this.fileToRBX(name)).filter(obj => obj != null));
+			.then(filenames => filenames
+				.map(name => this.fileToRBX(name))
+				.filter(obj => obj != null)
+			);
 	}
 
 	fileToRBX(filename: string): RBXObject {
@@ -101,16 +104,13 @@ export class VFS {
 		if (serverMatch) {
 			type = "Script";
 			name = serverMatch[1];
-		}
-		else if (clientMatch) {
+		} else if (clientMatch) {
 			type = "LocalScript";
 			name = clientMatch[1];
-		}
-		else if (moduleMatch) {
+		} else if (moduleMatch) {
 			type = "ModuleScript";
 			name = moduleMatch[1];
-		}
-		else {
+		} else {
 			return null;
 		}
 
