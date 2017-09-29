@@ -3,22 +3,30 @@
 ## Server
 *The server is limited to GET and POST requests due to limitations in the Roblox HTTP client.*
 
-### type `DomNode`
+### type `Instance`
 ```
 {
 	"name": "<name>",
-	"instance": RobloxInstance,
+	"details": InstanceDetails,
 	"children": {
 		"<name>": DomNode
 	}
 }
 ```
 
-### type `RobloxInstance`
+### type `InstanceDetails`
 ```
 {
 	"type": "<instance type>",
 	<other properties>
+}
+```
+
+### type `DomChange`
+```
+{
+	"route": ["path", "to", "instance"],
+	"timestamp": 0.0
 }
 ```
 
@@ -39,27 +47,18 @@ Response:
 }
 ```
 
-### `GET /fs/changed-since/<time>`
+### `GET /fs/changes-since/<time>`
 Response:
 ```
 {
 	"now": 0.0,
 	"changes": [
-		DomChange
+		...DomChange
 	]
 }
 ```
 
-### `GET /fs/read-all`
-Response:
-```
-{
-	"now": 0.0,
-	"root": DomNode
-}
-```
-
-### `GET /fs/read/<path..>`
+### `GET /fs/read/<path..>?`
 Response:
 ```
 {
