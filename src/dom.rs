@@ -67,6 +67,10 @@ impl Dom {
 		&self.root_instance
 	}
 
+	pub fn navigate_mut(&mut self, route: &[String]) -> Option<&mut Instance> {
+		self.root_instance.navigate_mut(route)
+	}
+
 	pub fn navigate(&self, route: &[String]) -> Option<&Instance> {
 		self.root_instance.navigate(route)
 	}

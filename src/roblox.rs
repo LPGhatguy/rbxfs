@@ -26,7 +26,25 @@ impl Instance {
 		self.children.insert(child.name.clone(), child);
 	}
 
-	pub fn navigate<'a, T: Borrow<str>>(&self, route: &[T]) -> Option<&Instance> {
+	pub fn navigate_mut<T: Borrow<str>>(&mut self, route: &[T]) -> Option<&mut Instance> {
+		let mut current_instance = self;
+
+		for route_piece in route {
+			let instance = current_instance;
+			match instance.children.get_mut(route_piece.borrow()) {
+				Some(child_node) => {
+					current_instance = child_node;
+				},
+				None => {
+					return None;
+				},
+			}
+		}
+
+		Some(current_instance)
+	}
+
+	pub fn navigate<T: Borrow<str>>(&self, route: &[T]) -> Option<&Instance> {
 		let mut current_instance = self;
 
 		for route_piece in route {
