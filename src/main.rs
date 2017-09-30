@@ -168,7 +168,7 @@ fn main() {
 	loop {
 		let event = rx.recv().unwrap();
 
-		// let mut dom = dom.lock().unwrap();
-		// dom.handle_event(&event);
+		let mut dom = dom.lock().unwrap();
+		dom.handle_fs_event(&event);
 	}
 }

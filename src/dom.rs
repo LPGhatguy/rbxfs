@@ -5,6 +5,7 @@ use std::time::Instant;
 
 use rocket::{Request, Outcome};
 use rocket::request::{self, State, FromRequest};
+use notify::DebouncedEvent;
 
 use roblox::{Instance, InstanceDetails};
 use dom_route::DomRoute;
@@ -63,6 +64,10 @@ impl Dom {
 		}
 	}
 
+	pub fn add_change(&mut self, change: DomChange) {
+		self.changes.push(change);
+	}
+
 	pub fn root(&self) -> &Instance {
 		&self.root_instance
 	}
@@ -73,6 +78,39 @@ impl Dom {
 
 	pub fn navigate(&self, route: &[String]) -> Option<&Instance> {
 		self.root_instance.navigate(route)
+	}
+
+	pub fn handle_fs_event(&mut self, event: &DebouncedEvent) {
+		println!("fs event: {:?}", event);
+		let timestamp = self.current_time();
+
+		match *event {
+			DebouncedEvent::Write(ref path) => {
+				self.add_change(DomChange {
+					route: DomRoute(Vec::new()),
+					timestamp,
+				});
+			},
+			DebouncedEvent::Create(ref path) => {
+				self.add_change(DomChange {
+					route: DomRoute(Vec::new()),
+					timestamp,
+				});
+			},
+			DebouncedEvent::Remove(ref path) => {
+				self.add_change(DomChange {
+					route: DomRoute(Vec::new()),
+					timestamp,
+				});
+			},
+			DebouncedEvent::Rename(ref from, ref to) => {
+				self.add_change(DomChange {
+					route: DomRoute(Vec::new()),
+					timestamp,
+				});
+			},
+			_ => {},
+		}
 	}
 }
 

@@ -4,13 +4,13 @@ end
 
 local HttpService = game:GetService("HttpService")
 
-local function create(rbx, domNode)
-	for name, child in pairs(domNode.children) do
-		local instance = child.instance
-		local childRbx = Instance.new(instance.type)
+local function create(rbx, instance)
+	for name, child in pairs(instance.children) do
+		local details = child.details
+		local childRbx = Instance.new(details.type)
 
-		if instance.source then
-			childRbx.Source = instance.source
+		if details.source then
+			childRbx.Source = details.source
 		end
 
 		childRbx.Name = name
@@ -41,14 +41,16 @@ local function main()
 
 	toolbar:CreateButton("Download", "Download (Testing)", "")
 		.Click:Connect(function()
-			local readAllUrl = ("%s/read-all"):format(remote)
-			local result = HttpService:GetAsync(readAllUrl)
+			print("Downloading...")
 
-			print("download:", result)
+			local readAllUrl = ("%s/read"):format(remote)
+			local result = HttpService:GetAsync(readAllUrl)
 
 			local value = HttpService:JSONDecode(result)
 
-			create(game.Workspace, value.root)
+			create(game.Workspace, value.instance)
+
+			print("Downloaded from rbxfs server!")
 		end)
 end
 
