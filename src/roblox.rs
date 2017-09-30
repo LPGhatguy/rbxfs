@@ -13,13 +13,34 @@ pub struct Instance {
 
 impl Instance {
 	pub fn new<T>(name: T, details: InstanceDetails) -> Instance
-		where T: AsRef<str> {
+		where T: Into<String> {
 
 		Instance {
-			name: name.as_ref().to_string(),
+			name: name.into(),
 			children: HashMap::new(),
 			details,
 		}
+	}
+
+	pub fn add_child(&mut self, child: Instance) {
+		self.children.insert(child.name.clone(), child);
+	}
+
+	pub fn navigate(&self, route: Vec<String>) -> Option<&Instance> {
+		let mut current_instance = self;
+
+		for route_piece in route {
+			match current_instance.children.get(&route_piece) {
+				Some(child_node) => {
+					current_instance = child_node;
+				},
+				None => {
+					return None;
+				},
+			}
+		}
+
+		Some(current_instance)
 	}
 }
 
@@ -49,7 +70,7 @@ pub enum InstanceDetails {
 	Unknown,
 }
 
-mod instance_types {
+pub mod instance_types {
 	#[derive(Debug, Serialize, Deserialize)]
 	pub struct RobloxFolder {
 	}

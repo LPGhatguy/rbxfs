@@ -14,9 +14,11 @@ mod path_ext;
 mod dom;
 mod dom_route;
 mod roblox;
+mod fs;
 
 use dom::{Dom, DomChange, DomState};
 use dom_route::{DomRoute};
+use roblox::Instance;
 
 use std::path::{PathBuf};
 use std::sync::mpsc;
@@ -45,6 +47,12 @@ struct NowResponse {
 #[derive(Serialize)]
 struct ChangedSinceResponse<'a> {
 	changes: &'a[DomChange]
+}
+
+#[derive(Serialize)]
+struct ReadResponse<'a> {
+	instance: &'a Instance,
+	current_time: f64,
 }
 
 #[get("/")]
@@ -84,9 +92,17 @@ fn changes_since(dom: DomState, time: f64) -> String {
 
 #[get("/fs/read")]
 fn read_root(dom: DomState) -> String {
-	println!("Read from root");
+	let dom = dom.lock().unwrap();
 
-	"".to_string()
+	let instance = dom.root();
+	let current_time = dom.current_time();
+
+	let response = ReadResponse {
+		instance,
+		current_time
+	};
+
+	serde_json::to_string(&response).unwrap()
 }
 
 #[get("/fs/read/<path..>")]
@@ -105,7 +121,14 @@ fn main() {
 		fs_root = std::env::current_dir().unwrap().join(fs_root);
 	}
 
-	let dom = Arc::new(Mutex::new(Dom::new()));
+	let dom = {
+		let dom = Dom::open(&fs_root)
+			.expect("Unable to open Dom at requested path!");
+
+		println!("Got Dom: {:?}", dom);
+
+		Arc::new(Mutex::new(dom))
+	};
 
 	let config = {
 		use rocket::config::{Config, Environment};
