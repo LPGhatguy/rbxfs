@@ -9,7 +9,7 @@ use notify::DebouncedEvent;
 
 use roblox::{Instance, InstanceDetails};
 use dom_route::DomRoute;
-use fs::read_instance_from_path;
+use fs::{read_instance_from_path, path_to_route};
 
 /// Represents the link between the file system and our Instance tree.
 #[derive(Debug)]
@@ -86,8 +86,39 @@ impl Dom {
 
 		match *event {
 			DebouncedEvent::Write(ref path) => {
+				let changed_route = {
+					let mut route = match path_to_route(&self.path, path) {
+						Some(v) => v,
+						None => {
+							println!("failed to convert path to route");
+							return
+						},
+					};
+					let new_instance = match read_instance_from_path(path) {
+						Some(v) => v,
+						None => {
+							println!("failed to read instance");
+							return
+						},
+					};
+					let parent = match self.navigate_mut(&route[..route.len() - 1]) {
+						Some(v) => v,
+						None => {
+							println!("failed to navigate to parent");
+							return;
+						},
+					};
+
+					let name = new_instance.name.clone();
+
+					parent.add_child(new_instance);
+
+					route.push(name);
+					route
+				};
+
 				self.add_change(DomChange {
-					route: DomRoute(Vec::new()),
+					route: DomRoute(changed_route),
 					timestamp,
 				});
 			},

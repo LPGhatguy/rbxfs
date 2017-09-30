@@ -1,4 +1,4 @@
-use std::path::{Path};
+use std::path::{Path, Component};
 use std::fs::{read_dir, File};
 use std::io::Read;
 
@@ -26,6 +26,33 @@ fn read_file<T: AsRef<Path>>(path: T) -> Option<String> {
 	}
 
 	Some(contents)
+}
+
+pub fn path_to_route<A: AsRef<Path>, B: AsRef<Path>>(root: A, path: B) -> Option<Vec<String>> {
+	let root = root.as_ref();
+	let path = path.as_ref();
+
+	let relative = match path.strip_prefix(root) {
+		Ok(v) => v,
+		Err(_) => return None,
+	};
+
+	let mut buffer: Vec<String> = Vec::new();
+
+	for component in relative.components() {
+		match component {
+			Component::CurDir => {},
+			Component::ParentDir => {
+				// Don't do that!
+				return None;
+			},
+			_ => {
+				buffer.push(component.as_os_str().to_string_lossy().into());
+			}
+		}
+	}
+
+	Some(buffer)
 }
 
 /// Attempts to read an instance from the filesystem.
