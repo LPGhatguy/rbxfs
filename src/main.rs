@@ -51,7 +51,7 @@ struct ChangedSinceResponse<'a> {
 
 #[derive(Serialize)]
 struct ReadResponse<'a> {
-	instance: &'a Instance,
+	instance: Option<&'a Instance>,
 	current_time: f64,
 }
 
@@ -83,23 +83,23 @@ fn changes_since(dom: DomState, time: f64) -> String {
 
 	let changes = dom.get_changes_since(time);
 
-	let response = serde_json::to_string(&ChangedSinceResponse {
+	let response = ChangedSinceResponse {
 		changes
-	});
+	};
 
-	response.unwrap()
+	serde_json::to_string(&response).unwrap()
 }
 
 #[get("/fs/read")]
 fn read_root(dom: DomState) -> String {
 	let dom = dom.lock().unwrap();
 
-	let instance = dom.root();
+	let instance = Some(dom.root());
 	let current_time = dom.current_time();
 
 	let response = ReadResponse {
 		instance,
-		current_time
+		current_time,
 	};
 
 	serde_json::to_string(&response).unwrap()
@@ -107,11 +107,17 @@ fn read_root(dom: DomState) -> String {
 
 #[get("/fs/read/<path..>")]
 fn read(dom: DomState, path: DomRoute) -> String {
-	println!("Read from {:?}", path);
+	let dom = dom.lock().unwrap();
 
-	let response = serde_json::to_string(&path);
+	let instance = dom.navigate(&path);
+	let current_time = dom.current_time();
 
-	response.unwrap()
+	let response = ReadResponse {
+		instance,
+		current_time,
+	};
+
+	serde_json::to_string(&response).unwrap()
 }
 
 fn main() {

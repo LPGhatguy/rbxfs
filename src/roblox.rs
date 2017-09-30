@@ -1,6 +1,6 @@
 use std::path::{Path, PathBuf};
 use std::collections::HashMap;
-use std::borrow::Cow;
+use std::borrow::{Borrow, Cow};
 
 /// Represents a Roblox instance and all of its properties
 /// All instances have a name and children, but most have more.
@@ -26,11 +26,11 @@ impl Instance {
 		self.children.insert(child.name.clone(), child);
 	}
 
-	pub fn navigate(&self, route: Vec<String>) -> Option<&Instance> {
+	pub fn navigate<'a, T: Borrow<str>>(&self, route: &[T]) -> Option<&Instance> {
 		let mut current_instance = self;
 
 		for route_piece in route {
-			match current_instance.children.get(&route_piece) {
+			match current_instance.children.get(route_piece.borrow()) {
 				Some(child_node) => {
 					current_instance = child_node;
 				},

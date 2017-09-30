@@ -1,3 +1,5 @@
+use std::ops::Deref;
+
 use rocket::request::FromSegments;
 use rocket::http::uri::Segments;
 
@@ -15,5 +17,13 @@ impl<'a> FromSegments<'a> for DomRoute {
 		}
 
 		Ok(DomRoute(components))
+	}
+}
+
+impl Deref for DomRoute {
+	type Target = Vec<String>;
+
+	fn deref(&self) -> &Self::Target {
+		&self.0
 	}
 }

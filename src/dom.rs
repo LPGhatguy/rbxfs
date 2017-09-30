@@ -67,7 +67,7 @@ impl Dom {
 		&self.root_instance
 	}
 
-	pub fn navigate(&self, route: Vec<String>) -> Option<&Instance> {
+	pub fn navigate(&self, route: &[String]) -> Option<&Instance> {
 		self.root_instance.navigate(route)
 	}
 }
