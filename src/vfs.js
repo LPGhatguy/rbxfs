@@ -1,5 +1,3 @@
-// @flow
-
 import { join, relative } from "path";
 import { watch } from "chokidar";
 

@@ -1,7 +1,5 @@
 #!/usr/bin/env node
 
-// @flow
-
 import express from "express";
 import { createReadStream, createWriteStream, readFileSync } from "fs";
 import * as path from "path";

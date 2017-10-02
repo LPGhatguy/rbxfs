@@ -1,5 +1,3 @@
-// @flow
-
 import glob from "glob";
 
 export default function globPromise(files: string, options: Object = {}) {

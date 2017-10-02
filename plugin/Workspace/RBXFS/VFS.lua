@@ -2,7 +2,7 @@ local Net = require(script.Parent.Net)
 
 local VFS = {
 	polling = false,
-	pollingRate = 0.25,
+	pollingRate = 0.1,
 	now = 0
 }
 
@@ -41,14 +41,12 @@ function VFS:startPolling()
 
 	spawn(function()
 		while (self.polling) do
-			wait(0.25)
-
 			local changeInfo = Net:getChangedSince(self.now)
 			local changed = changeInfo.changed
 			self.now = changeInfo.now
 
 			if (#changed > 0) then
-				for key, changeEvent in ipairs(changed) do
+				for _, changeEvent in ipairs(changed) do
 					local codeObject = changeEvent.object
 					local scriptObject = self:getRBX(codeObject)
 
@@ -61,6 +59,8 @@ function VFS:startPolling()
 					end
 				end
 			end
+
+			wait(self.pollingRate)
 		end
 	end)
 end
@@ -72,7 +72,7 @@ end
 function VFS:syncToRBX()
 	local list = Net:list()
 
-	for key, codeObject in ipairs(list.files) do
+	for _, codeObject in ipairs(list.files) do
 		local scriptObject = self:getRBX(codeObject)
 		local source = Net:read(scriptObject)
 		scriptObject.Source = source
