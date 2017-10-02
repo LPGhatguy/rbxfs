@@ -50,7 +50,7 @@ impl Dom {
 		let mut marker: Option<usize> = None;
 
 		for (index, value) in self.changes.iter().enumerate().rev() {
-			if value.timestamp <= timestamp {
+			if value.timestamp >= timestamp {
 				marker = Some(index);
 			} else {
 				break;
@@ -113,7 +113,6 @@ impl Dom {
 
 					parent.add_child(new_instance);
 
-					route.push(name);
 					route
 				};
 

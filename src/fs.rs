@@ -52,6 +52,18 @@ pub fn path_to_route<A: AsRef<Path>, B: AsRef<Path>>(root: A, path: B) -> Option
 		}
 	}
 
+	{
+		let last = buffer.len() - 1;
+		let leaf = &mut buffer[last];
+
+		if leaf.ends_with(".lua") {
+			// this doesn't feel quite right
+			for _ in 0..4 {
+				leaf.pop();
+			}
+		}
+	}
+
 	Some(buffer)
 }
 
