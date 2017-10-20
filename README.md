@@ -9,8 +9,24 @@ A system to replicate scripts from the filesystem into Roblox Studio.
 - Navigate to the folder to sync and run `rbxfs`
 - Use buttons in plugin to move files between server and ROBLOX
 
+File names map to different script types:
+- `*.server.lua` - `Script`
+- `*.client.lua` - `LocalScript`
+- `*.lua` - `ModuleScript`
+
 ## Configuration
-As of RBXFS version 0.2.0, the system supports configuration via a file called `rbxfs.json` in the root of your project.
+RBXFS supports configuration via a file called `rbxfs.json` in the root of your project.
+
+The default configuration values are:
+
+```json
+{
+	"rootDirectory": "",
+	"rootObject": ""
+}
+```
+
+It assumes that your code begins in the current directory and matches the Roblox hierarchy starting from `game`. You might have folders named `ReplicatedStorage`, `ServerScriptStorage`, and these would map to the top-level services.
 
 To synchronize files in the `src` directory to `ReplicatedStorage.MyGame`, use this configuration:
 
