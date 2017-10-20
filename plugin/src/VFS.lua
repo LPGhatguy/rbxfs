@@ -57,7 +57,7 @@ function VFS:startPolling()
 			local ok, changeInfo = Net:getChangedSince(self.now)
 
 			if not ok then
-				warn("Couldn't connect to RBXFS server. Make sure that it's running.")
+				warn("Couldn't connect to RBXFS server. Make sure that it's running!")
 				self:_setPolling(false)
 				return
 			end

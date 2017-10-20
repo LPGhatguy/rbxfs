@@ -27,7 +27,7 @@ local function main()
 			if ok then
 				print("Sync to Roblox successful!")
 			else
-				warn("Couldn't connect to RBXFS server. Make sure that it's running.")
+				warn("Couldn't connect to RBXFS server. Make sure that it's running!")
 			end
 		end)
 

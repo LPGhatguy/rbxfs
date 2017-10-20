@@ -1,8 +1,8 @@
+local HttpService = game:GetService("HttpService")
+
 local Net = {
 	baseUrl = "http://localhost:8000/"
 }
-
-local HttpService = game:GetService("HttpService")
 
 local function getNetName(scriptObject)
 	local fullName = scriptObject:GetFullName()
