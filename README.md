@@ -2,6 +2,7 @@
 A system to replicate scripts from the filesystem into Roblox Studio.
 
 ## Installation
+- Make sure you have Node.js 8.0+ installed
 - Install [this ROBLOX plugin](https://www.roblox.com/library/394835268/RBXFS)
 - Install the server: `npm install -g rbxfs`
 
