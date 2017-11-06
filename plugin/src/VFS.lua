@@ -47,6 +47,12 @@ function VFS:_setPolling(value)
 	for listener in pairs(self._pollingListeners) do
 		listener(value)
 	end
+
+	if value then
+		print("Started polling server for changes.")
+	else
+		print("Stopped polling server for changes.")
+	end
 end
 
 function VFS:startPolling()
@@ -57,7 +63,7 @@ function VFS:startPolling()
 			local ok, changeInfo = Net:getChangedSince(self.now)
 
 			if not ok then
-				warn("Couldn't connect to RBXFS server. Make sure that it's running!")
+				changeInfo:report()
 				self:_setPolling(false)
 				return
 			end
@@ -74,7 +80,8 @@ function VFS:startPolling()
 						local ok, source = Net:read(scriptObject)
 
 						if not ok then
-							warn("RBXFS server disconnected mid-change.")
+							warn("RBXFS server disconnected mid-sync! Data may be in an odd state.")
+							source:report()
 							self:_setPolling(false)
 							return
 						end
@@ -107,7 +114,6 @@ function VFS:syncToRBX()
 		local ok, source = Net:read(scriptObject)
 
 		if not ok then
-			warn("Sync to Roblox failed mid-read!")
 			return false, source
 		end
 
