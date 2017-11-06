@@ -1,7 +1,10 @@
 # rbxfs changelog
 
-## `master` branch
-* Normalized error messages
+## 0.3.1
+* Significantly improved error messages from the plugin
+
+## 0.3.1
+* Fixed broken release due to npm bug
 
 ## 0.3.0
 * Improved plugin UI and error handling to be much more useful
