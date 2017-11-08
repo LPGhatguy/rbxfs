@@ -43,12 +43,6 @@ local function makeError(type, extraMessage)
 	return err
 end
 
-local function getNetName(scriptObject)
-	local fullName = scriptObject:GetFullName()
-
-	return (fullName:gsub("^game%.", ""))
-end
-
 --[[
 	This is so horrible.
 
@@ -116,18 +110,18 @@ function Net:list()
 	return true, HttpService:JSONDecode(response)
 end
 
-function Net:read(scriptObject)
+function Net:read(scriptName, scriptObject)
 	local url = ("files/%s/%s"):format(
-		getNetName(scriptObject),
+		scriptName,
 		scriptObject.ClassName
 	)
 
 	return self:get(url)
 end
 
-function Net:write(scriptObject)
+function Net:write(scriptName, scriptObject)
 	local url = ("files/%s/%s"):format(
-		getNetName(scriptObject),
+		scriptName,
 		scriptObject.ClassName
 	)
 

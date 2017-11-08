@@ -20,12 +20,15 @@ function VFS:getRBX(scriptObject)
 		table.insert(leaves, leaf)
 	end
 
-	for i = 1, #leaves do
+	local isInit = leaves[#leaves] == "init"
+	local leafCount = isInit and #leaves - 1 or #leaves
+
+	for i = 1, leafCount do
 		local leaf = leaves[i]
 		local newCurrent = current:FindFirstChild(leaf)
 
-		if (not newCurrent) then
-			if (i < #leaves) then
+		if not newCurrent then
+			if i < #leaves then
 				newCurrent = Instance.new("Folder")
 			else
 				newCurrent = Instance.new(scriptObject.type)
@@ -36,6 +39,22 @@ function VFS:getRBX(scriptObject)
 		end
 
 		current = newCurrent
+	end
+
+	if isInit then
+		-- Replace this incorrect object!
+		if current.ClassName ~= scriptObject.type then
+			local newCurrent = Instance.new(scriptObject.type)
+			newCurrent.Parent = current.Parent
+			newCurrent.Name = current.Name
+
+			for _, child in ipairs(current:GetChildren()) do
+				child.Parent = newCurrent
+			end
+
+			current:Destroy()
+			current = newCurrent
+		end
 	end
 
 	return current
@@ -111,7 +130,7 @@ function VFS:syncToRBX()
 
 	for _, codeObject in ipairs(list.files) do
 		local scriptObject = self:getRBX(codeObject)
-		local ok, source = Net:read(scriptObject)
+		local ok, source = Net:read(codeObject.name, scriptObject)
 
 		if not ok then
 			return false, source
