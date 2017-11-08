@@ -22,15 +22,6 @@ stds.roblox = {
 	}
 }
 
-stds.testez = {
-	read_globals = {
-		"describe",
-		"it", "itFOCUS", "itSKIP",
-		"FOCUS", "SKIP", "HACK_NO_XPCALL",
-		"expect",
-	}
-}
-
 stds.plugin = {
 	read_globals = {
 		"plugin",
@@ -49,8 +40,4 @@ std = "lua51+roblox"
 
 files["**/*.server.lua"] = {
 	std = "+plugin",
-}
-
-files["**/*.spec.lua"] = {
-	std = "+testez",
 }

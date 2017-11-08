@@ -1,174 +1,93 @@
-#![feature(plugin, decl_macro)]
-#![plugin(rocket_codegen)]
-
 #[macro_use]
 extern crate serde_derive;
 
+#[macro_use]
+extern crate rouille;
+
+#[macro_use]
+extern crate clap;
+
 extern crate serde;
 extern crate serde_json;
-extern crate rocket;
-extern crate rocket_contrib;
 extern crate notify;
 
-mod path_ext;
-mod dom;
-mod dom_route;
-mod roblox;
-mod fs;
+mod web;
+mod core;
 
-use dom::{Dom, DomChange, DomState};
-use dom_route::{DomRoute};
-use roblox::Instance;
-
-use std::path::{PathBuf};
-use std::sync::mpsc;
-use std::sync::{Arc, Mutex};
-use std::thread;
-use std::time::Duration;
-use std::ops::Deref;
-
-use notify::{RecommendedWatcher, Watcher, RecursiveMode};
-
-use rocket_contrib::Json;
-use rocket::request::{self, FromRequest};
-use rocket::{Request, State, Outcome};
-
-#[derive(Serialize)]
-struct InfoResponse {
-	server_version: String,
-	protocol_version: String,
-}
-
-#[derive(Serialize)]
-struct NowResponse {
-	current_time: f64,
-}
-
-#[derive(Serialize)]
-struct ChangedSinceResponse<'a> {
-	changes: &'a[DomChange]
-}
-
-#[derive(Serialize)]
-struct ReadResponse<'a> {
-	instance: Option<&'a Instance>,
-	current_time: f64,
-}
-
-#[get("/")]
-fn root() -> &'static str {
-	"rbxfs is running!"
-}
-
-#[get("/fs/info")]
-fn info() -> Json<InfoResponse> {
-	Json(InfoResponse {
-		server_version: "1.0.0".to_string(),
-		protocol_version: "1.0.0".to_string(),
-	})
-}
-
-#[get("/fs/now")]
-fn now(dom: DomState) -> Json<NowResponse> {
-	let dom = dom.lock().unwrap();
-
-	Json(NowResponse {
-		current_time: dom.current_time(),
-	})
-}
-
-#[get("/fs/changes-since/<time>")]
-fn changes_since(dom: DomState, time: f64) -> String {
-	let dom = dom.lock().unwrap();
-
-	let changes = dom.get_changes_since(time);
-
-	let response = ChangedSinceResponse {
-		changes
-	};
-
-	serde_json::to_string(&response).unwrap()
-}
-
-#[get("/fs/read")]
-fn read_root(dom: DomState) -> String {
-	let dom = dom.lock().unwrap();
-
-	let instance = Some(dom.root());
-	let current_time = dom.current_time();
-
-	let response = ReadResponse {
-		instance,
-		current_time,
-	};
-
-	serde_json::to_string(&response).unwrap()
-}
-
-#[get("/fs/read/<path..>")]
-fn read(dom: DomState, path: DomRoute) -> String {
-	let dom = dom.lock().unwrap();
-
-	let instance = dom.navigate(&path);
-	let current_time = dom.current_time();
-
-	let response = ReadResponse {
-		instance,
-		current_time,
-	};
-
-	serde_json::to_string(&response).unwrap()
-}
+use core::Config;
 
 fn main() {
-	let mut fs_root = PathBuf::from("test-folder");
+	let matches = clap_app!(rbxfs =>
+		(version: env!("CARGO_PKG_VERSION"))
+		(author: env!("CARGO_PKG_AUTHORS"))
+		(about: env!("CARGO_PKG_DESCRIPTION"))
 
-	if fs_root.is_relative() {
-		fs_root = std::env::current_dir().unwrap().join(fs_root);
-	}
+		(@subcommand init =>
+			(about: "Creates a new rbxfs project")
+			(@arg PATH: "Path to the place to create the project. Defaults to the current directory.")
+		)
 
-	let dom = {
-		let dom = Dom::open(&fs_root)
-			.expect("Unable to open Dom at requested path!");
+		(@subcommand serve =>
+			(about: "Serves the project's files for use with the rbxfs dev plugin.")
+			(@arg PROJECT: "Path to the project to serve. Defaults to the current directory.")
+			(@arg port: --port +takes_value "The port to listen on. Defaults to 8000.")
+		)
 
-		println!("Got Dom: {:?}", dom);
+		(@subcommand pack =>
+			(about: "Packs the project into a GUI installer bundle.")
+			(@arg PROJECT: "Path to the project to pack. Defaults to the current directory.")
+		)
 
-		Arc::new(Mutex::new(dom))
+		(@arg verbose: --verbose "Enable extended logging.")
+	).get_matches();
+
+	let verbose = match matches.occurrences_of("verbose") {
+		0 => false,
+		_ => true,
 	};
 
-	let config = {
-		use rocket::config::{Config, Environment};
+	match matches.subcommand() {
+		("init", _) => {
+			eprintln!("Not implemented.");
+			std::process::exit(1);
+		},
+		("serve", sub_matches) => {
+			let sub_matches = sub_matches.unwrap();
 
-		Config::build(Environment::Staging)
-			.address("localhost")
-			.port(8001)
-			.finalize()
-			.unwrap()
-	};
+			let port = {
+				match sub_matches.value_of("port") {
+					Some(source) => {
+						match source.parse::<u64>() {
+							Ok(value) => value,
+							Err(_) => {
+								eprintln!("Invalid port '{}'", source);
+								std::process::exit(1);
+							},
+						}
+					},
+					None => 8000,
+				}
+			};
 
-	let (tx, rx) = mpsc::channel();
+			let config = Config {
+				port,
+				verbose,
+			};
 
-	let mut watcher: RecommendedWatcher = Watcher::new(tx, Duration::from_secs(1))
-		.expect("Unable to create watcher!");
+			web::start(&config);
 
-	watcher.watch(fs_root, RecursiveMode::Recursive)
-		.expect("Unable to watch fs_root!");
+			println!("Server listening on port {}", port);
 
-	{
-		let dom = dom.clone();
-
-		thread::spawn(move || {
-			rocket::custom(config, true)
-				.manage(DomState(dom))
-				.mount("/", routes![root, info, now, changes_since, read_root, read])
-				.launch();
-		});
-	}
-
-	loop {
-		let event = rx.recv().unwrap();
-
-		let mut dom = dom.lock().unwrap();
-		dom.handle_fs_event(&event);
+			loop {}
+		},
+		("pack", _) => {
+			eprintln!("Not implemented.");
+			std::process::exit(1);
+		},
+		_ => {
+			eprintln!("Please specify a subcommand!");
+			eprintln!("Try 'rbxfs help' for information.");
+			std::process::exit(1);
+		},
 	}
 }

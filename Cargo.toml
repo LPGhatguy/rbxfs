@@ -1,17 +1,13 @@
 [package]
 name = "rbxfs"
 version = "0.1.0"
-authors = ["lgreathouse <me@lpghatguy.com>"]
+authors = ["Lucien Greathouse <me@lpghatguy.com>"]
+description = "Transfers Roblox objects to and from the filesystem"
 
 [dependencies]
-rocket = "0.3.2"
-rocket_codegen = "0.3.2"
+clap = "2.27.1"
+rouille = "1.0"
 serde = "1.0"
 serde_derive = "1.0"
 serde_json = "1.0"
 notify = "4.0.0"
-
-[dependencies.rocket_contrib]
-version = "0.3.2"
-default-features = false
-features = ["json"]
