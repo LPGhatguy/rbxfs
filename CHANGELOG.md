@@ -1,6 +1,9 @@
 # rbxfs changelog
 
 ## Master
+* No changes
+
+## 0.3.3
 * Added support for `init.lua` in the Lua plugin
 * Removed build system requirement
 

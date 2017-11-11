@@ -6,7 +6,7 @@ local Net = require(script.Parent.Net)
 local VFS = require(script.Parent.VFS)
 
 local function main()
-	local toolbar = plugin:CreateToolbar("RBXFS 0.3.2")
+	local toolbar = plugin:CreateToolbar("RBXFS 0.3.3")
 
 	toolbar:CreateButton("Version", "Show RBXFS server version", "")
 		.Click:connect(function()
