@@ -8,7 +8,7 @@ A system to replicate scripts from the filesystem into Roblox Studio.
 
 ## Usage
 - Navigate to the folder to sync and run `rbxfs`
-- Use buttons in plugin to move files between server and ROBLOX
+- Use buttons in plugin to move files between server and Roblox
 
 File names map to different script types:
 - `*.server.lua` - `Script`
@@ -39,16 +39,11 @@ To synchronize files in the `src` directory to `ReplicatedStorage.MyGame`, use t
 ```
 
 ## Developing
-Building requires Node.js 8.x.
-
-To build from this repository:
-
-- Run `npm install -g gulp`
-- Run `gulp`
+Developing requires Node.js 8.x.
 
 See `plugin` for the ROBLOX plugin source. This can be synced to ROBLOX using the last released version of the plugin.
 
-See `src` for the Node.js server source.
+See `lib` for the Node.js server source. Use `npm link` to use the Git version in your projects.
 
 ## Why not [RbxRefresh](https://github.com/osyrisrblx/RbxRefresh)?
 I hadn't heard of RbxRefresh when I built this!
