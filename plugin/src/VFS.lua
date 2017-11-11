@@ -96,7 +96,7 @@ function VFS:startPolling()
 					local scriptObject = self:getRBX(codeObject)
 
 					if (changeEvent.type == "change") then
-						local ok, source = Net:read(scriptObject)
+						local ok, source = Net:read(codeObject.name, scriptObject)
 
 						if not ok then
 							warn("RBXFS server disconnected mid-sync! Data may be in an odd state.")
