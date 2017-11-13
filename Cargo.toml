@@ -4,6 +4,10 @@ version = "0.1.0"
 authors = ["Lucien Greathouse <me@lpghatguy.com>"]
 description = "Transfers Roblox objects to and from the filesystem"
 
+[[bin]]
+name = "rbxfs"
+path = "src/bin.rs"
+
 [dependencies]
 clap = "2.27.1"
 rouille = "1.0"

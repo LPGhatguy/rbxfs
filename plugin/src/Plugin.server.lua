@@ -14,7 +14,7 @@ local function main()
 
 	toolbar:CreateButton("Connect", "Connect to RBXFS Instance", "")
 		.Click:Connect(function()
-			local infoUrl = ("%s/info"):format(remote)
+			local infoUrl = ("%s"):format(remote)
 			local result = HttpService:JSONDecode(HttpService:GetAsync(infoUrl))
 
 			print(("Connected!\nServer version: %s\nProtocol version: %s"):format(
