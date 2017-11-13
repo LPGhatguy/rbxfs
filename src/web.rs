@@ -13,7 +13,7 @@ static SERVER_INFO: ServerInfo = ServerInfo {
 };
 
 #[derive(Debug, Serialize, Deserialize)]
-#[serde(tag = "type")]
+#[serde(rename_all = "camelCase", tag = "type")]
 enum FsItem {
     File { path: String, contents: String },
     Dir {
@@ -23,6 +23,7 @@ enum FsItem {
 }
 
 #[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
 struct ServerInfo {
     server_version: &'static str,
     protocol_version: u64,

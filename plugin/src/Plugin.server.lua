@@ -18,8 +18,8 @@ local function main()
 			local result = HttpService:JSONDecode(HttpService:GetAsync(infoUrl))
 
 			print(("Connected!\nServer version: %s\nProtocol version: %s"):format(
-				result.server_version,
-				result.protocol_version
+				result.serverVersion,
+				result.protocolVersion
 			))
 		end)
 end
