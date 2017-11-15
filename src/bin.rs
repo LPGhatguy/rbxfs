@@ -13,11 +13,12 @@ extern crate serde_json;
 
 mod web;
 mod core;
-mod init;
+mod project;
 
 use std::path::{Path, PathBuf};
 
 use core::Config;
+use project::Project;
 
 fn canonicalish<T: AsRef<Path>>(value: T) -> PathBuf {
     let value = value.as_ref();
@@ -65,15 +66,15 @@ fn main() {
             let sub_matches = sub_matches.unwrap();
             let path = Path::new(sub_matches.value_of("PATH").unwrap_or("."));
 
-            match init::init(&path) {
+            match Project::init(&path) {
                 Ok(_) => {
                     let full_path = canonicalish(path);
                     println!("Created new empty project at {}", full_path.display());
-                },
+                }
                 Err(e) => {
                     eprintln!("Failed to create new project.\n{}", e);
                     std::process::exit(1);
-                },
+                }
             }
         }
         ("serve", sub_matches) => {
@@ -92,7 +93,11 @@ fn main() {
                 }
             };
 
-            let config = Config { port, verbose };
+            let config = Config {
+                port,
+                verbose,
+                root_path: "".into(),
+            };
 
             web::start(&config);
 
