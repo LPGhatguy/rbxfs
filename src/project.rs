@@ -24,6 +24,7 @@ pub enum ProjectSaveError {
 pub enum ProjectInitError {
     AlreadyExists,
     FailedToCreate,
+    FailedToWrite,
 }
 
 impl fmt::Display for ProjectInitError {
@@ -32,7 +33,7 @@ impl fmt::Display for ProjectInitError {
             &ProjectInitError::AlreadyExists => {
                 write!(f, "A project already exists at that location.")
             }
-            &ProjectInitError::FailedToCreate => {
+            &ProjectInitError::FailedToCreate | &ProjectInitError::FailedToWrite => {
                 write!(f, "Failed to write to the given location.")
             }
         }
@@ -52,7 +53,7 @@ impl Project {
         Project::default()
     }
 
-    pub fn init<T: AsRef<Path>>(location: T) -> Result<(), ProjectInitError> {
+    pub fn init<T: AsRef<Path>>(location: T) -> Result<Project, ProjectInitError> {
         let location = location.as_ref();
         let package_path = location.join(PROJECT_FILENAME);
 
@@ -69,25 +70,12 @@ impl Project {
         let project = Project::new();
         let serialized = serde_json::to_string_pretty(&project).unwrap();
 
-        file.write(serialized.as_bytes()).unwrap();
+        match file.write(serialized.as_bytes()) {
+            Ok(_) => {}
+            Err(_) => return Err(ProjectInitError::FailedToWrite),
+        }
 
-        Ok(())
-    }
-
-    pub fn save<T: AsRef<Path>>(location: T) -> Result<(), ProjectSaveError> {
-        let package_path = location.as_ref().join(Path::new(PROJECT_FILENAME));
-
-        let mut file = match File::create(&package_path) {
-            Ok(f) => f,
-            Err(_) => return Err(ProjectSaveError::FailedToCreate),
-        };
-
-        let project = Project::new();
-        let serialized = serde_json::to_string_pretty(&project).unwrap();
-
-        file.write(serialized.as_bytes()).unwrap();
-
-        Ok(())
+        Ok(project)
     }
 
     pub fn load<T: AsRef<Path>>(location: T) -> Result<Project, ProjectLoadError> {
@@ -114,6 +102,21 @@ impl Project {
             Ok(v) => Ok(v),
             Err(_) => return Err(ProjectLoadError::Invalid),
         }
+    }
+
+    pub fn save<T: AsRef<Path>>(&self, location: T) -> Result<(), ProjectSaveError> {
+        let package_path = location.as_ref().join(Path::new(PROJECT_FILENAME));
+
+        let mut file = match File::create(&package_path) {
+            Ok(f) => f,
+            Err(_) => return Err(ProjectSaveError::FailedToCreate),
+        };
+
+        let serialized = serde_json::to_string_pretty(self).unwrap();
+
+        file.write(serialized.as_bytes()).unwrap();
+
+        Ok(())
     }
 }
 
