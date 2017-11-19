@@ -16,11 +16,11 @@ mod core;
 mod project;
 mod pathext;
 
-use std::path::{Path, PathBuf, Component};
+use std::path::{Component, Path, PathBuf};
 
 use core::Config;
-use project::Project;
 use pathext::canonicalish;
+use project::Project;
 
 fn main() {
     let matches = clap_app!(rbxfs =>
@@ -61,13 +61,13 @@ fn main() {
                 Ok(_) => {
                     let full_path = canonicalish(path);
                     println!("Created new empty project at {}", full_path.display());
-                }
+                },
                 Err(e) => {
                     eprintln!("Failed to create new project.\n{}", e);
                     std::process::exit(1);
-                }
+                },
             }
-        }
+        },
         ("serve", sub_matches) => {
             let sub_matches = sub_matches.unwrap();
 
@@ -87,7 +87,7 @@ fn main() {
                         Err(_) => {
                             eprintln!("Invalid port '{}'", source);
                             std::process::exit(1);
-                        }
+                        },
                     },
                     None => 8000,
                 }
@@ -104,15 +104,15 @@ fn main() {
             println!("Server listening on port {}", port);
 
             loop {}
-        }
+        },
         ("pack", _) => {
             eprintln!("Not implemented.");
             std::process::exit(1);
-        }
+        },
         _ => {
             eprintln!("Please specify a subcommand!");
             eprintln!("Try 'rbxfs help' for information.");
             std::process::exit(1);
-        }
+        },
     }
 }

@@ -1,8 +1,8 @@
 use std::collections::HashMap;
-use std::thread;
 use std::fs::{self, File};
 use std::io::Read;
-use std::path::{Path, Component};
+use std::path::{Component, Path};
+use std::thread;
 
 use rouille;
 use serde;

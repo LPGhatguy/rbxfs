@@ -1,10 +1,8 @@
 use std::env::current_dir;
-use std::path::{Path, PathBuf, Component};
+use std::path::{Component, Path, PathBuf};
 
-/**
- * Turns the path into an absolute one, using the current working directory
- * if necessary.
- */
+/// Turns the path into an absolute one, using the current working directory if
+/// necessary.
 pub fn canonicalish<T: AsRef<Path>>(value: T) -> PathBuf {
     let value = value.as_ref();
 
@@ -16,10 +14,8 @@ pub fn canonicalish<T: AsRef<Path>>(value: T) -> PathBuf {
     }
 }
 
-/**
- * Collapses any `.` values along with any `..` values not at the start of the
- * path.
- */
+/// Collapses any `.` values along with any `..` values not at the start of the
+/// path.
 pub fn collapse<T: AsRef<Path>>(value: T) -> PathBuf {
     let value = value.as_ref();
 
@@ -27,11 +23,9 @@ pub fn collapse<T: AsRef<Path>>(value: T) -> PathBuf {
 
     for component in value.components() {
         match component {
-            Component::ParentDir => {
-                match buffer.pop() {
-                    Some(_) => {},
-                    None => buffer.push(component.as_os_str()),
-                }
+            Component::ParentDir => match buffer.pop() {
+                Some(_) => {},
+                None => buffer.push(component.as_os_str()),
             },
             Component::CurDir => {},
             _ => {
@@ -40,12 +34,10 @@ pub fn collapse<T: AsRef<Path>>(value: T) -> PathBuf {
         }
     }
 
-    buffer
-        .iter()
-        .fold(PathBuf::new(), |mut acc, &x| {
-            acc.push(x);
-            acc
-        })
+    buffer.iter().fold(PathBuf::new(), |mut acc, &x| {
+        acc.push(x);
+        acc
+    })
 }
 
 #[test]

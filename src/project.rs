@@ -1,7 +1,7 @@
+use std::fmt;
 use std::fs::{self, File};
 use std::io::{Read, Write};
 use std::path::Path;
-use std::fmt;
 
 use serde_json;
 
@@ -32,10 +32,10 @@ impl fmt::Display for ProjectInitError {
         match self {
             &ProjectInitError::AlreadyExists => {
                 write!(f, "A project already exists at that location.")
-            }
+            },
             &ProjectInitError::FailedToCreate | &ProjectInitError::FailedToWrite => {
                 write!(f, "Failed to write to the given location.")
-            }
+            },
         }
     }
 }
@@ -45,7 +45,8 @@ impl fmt::Display for ProjectInitError {
 pub struct Project {
     name: String,
 
-    #[serde(skip_serializing_if = "Option::is_none")] serve_port: Option<u64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    serve_port: Option<u64>,
 }
 
 impl Project {
@@ -59,7 +60,7 @@ impl Project {
 
         match fs::metadata(&package_path) {
             Ok(_) => return Err(ProjectInitError::AlreadyExists),
-            Err(_) => {}
+            Err(_) => {},
         }
 
         let mut file = match File::create(&package_path) {
@@ -71,7 +72,7 @@ impl Project {
         let serialized = serde_json::to_string_pretty(&project).unwrap();
 
         match file.write(serialized.as_bytes()) {
-            Ok(_) => {}
+            Ok(_) => {},
             Err(_) => return Err(ProjectInitError::FailedToWrite),
         }
 
@@ -82,7 +83,7 @@ impl Project {
         let package_path = location.as_ref().join(Path::new(PROJECT_FILENAME));
 
         match fs::metadata(&package_path) {
-            Ok(_) => {}
+            Ok(_) => {},
             Err(_) => return Err(ProjectLoadError::DidNotExist),
         }
 
@@ -94,7 +95,7 @@ impl Project {
         let mut contents = String::new();
 
         match file.read_to_string(&mut contents) {
-            Ok(_) => {}
+            Ok(_) => {},
             Err(_) => return Err(ProjectLoadError::FailedToRead),
         }
 
