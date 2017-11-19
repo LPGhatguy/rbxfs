@@ -14,22 +14,13 @@ extern crate serde_json;
 mod web;
 mod core;
 mod project;
+mod pathext;
 
-use std::path::{Path, PathBuf};
+use std::path::{Path, PathBuf, Component};
 
 use core::Config;
 use project::Project;
-
-fn canonicalish<T: AsRef<Path>>(value: T) -> PathBuf {
-    let value = value.as_ref();
-
-    if value.is_absolute() {
-        PathBuf::from(value)
-    } else {
-        let cwd = std::env::current_dir().unwrap();
-        cwd.join(value)
-    }
-}
+use pathext::canonicalish;
 
 fn main() {
     let matches = clap_app!(rbxfs =>
@@ -80,6 +71,15 @@ fn main() {
         ("serve", sub_matches) => {
             let sub_matches = sub_matches.unwrap();
 
+            let project_path = match sub_matches.value_of("PROJECT") {
+                Some(v) => PathBuf::from(v),
+                None => std::env::current_dir().unwrap(),
+            };
+
+            let project = Project::load(&project_path).unwrap_or(Project::default());
+
+            println!("Loaded project: {:?}", project);
+
             let port = {
                 match sub_matches.value_of("port") {
                     Some(source) => match source.parse::<u64>() {
@@ -96,10 +96,10 @@ fn main() {
             let config = Config {
                 port,
                 verbose,
-                root_path: "".into(),
+                root_path: std::env::current_dir().unwrap(),
             };
 
-            web::start(&config);
+            web::start(config.clone());
 
             println!("Server listening on port {}", port);
 
