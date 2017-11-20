@@ -1,7 +1,8 @@
+use std::collections::HashMap;
 use std::fmt;
 use std::fs::{self, File};
 use std::io::{Read, Write};
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use serde_json;
 
@@ -41,17 +42,26 @@ impl fmt::Display for ProjectInitError {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct MountPoint {
+    pub path: PathBuf,
+    pub target: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
 #[serde(default, rename_all = "camelCase")]
 pub struct Project {
-    name: String,
-
-    #[serde(skip_serializing_if = "Option::is_none")]
-    serve_port: Option<u64>,
+    pub name: String,
+    pub serve_port: u64,
+    pub mount_points: HashMap<String, MountPoint>,
 }
 
 impl Project {
-    pub fn new() -> Project {
-        Project::default()
+    pub fn new<T: Into<String>>(name: T) -> Project {
+        Project {
+            name: name.into(),
+            ..Default::default()
+        }
     }
 
     pub fn init<T: AsRef<Path>>(location: T) -> Result<Project, ProjectInitError> {
@@ -68,7 +78,12 @@ impl Project {
             Err(_) => return Err(ProjectInitError::FailedToCreate),
         };
 
-        let project = Project::new();
+        let name = match location.file_name() {
+            Some(v) => v.to_string_lossy().into_owned(),
+            None => "new-project".to_string(),
+        };
+
+        let project = Project::new(name);
         let serialized = serde_json::to_string_pretty(&project).unwrap();
 
         match file.write(serialized.as_bytes()) {
@@ -125,7 +140,8 @@ impl Default for Project {
     fn default() -> Project {
         Project {
             name: "some-project".to_string(),
-            serve_port: None,
+            serve_port: 8000,
+            mount_points: HashMap::new(),
         }
     }
 }

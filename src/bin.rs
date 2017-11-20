@@ -55,11 +55,11 @@ fn main() {
     match matches.subcommand() {
         ("init", sub_matches) => {
             let sub_matches = sub_matches.unwrap();
-            let path = Path::new(sub_matches.value_of("PATH").unwrap_or("."));
+            let project_path = Path::new(sub_matches.value_of("PATH").unwrap_or("."));
 
-            match Project::init(&path) {
+            match Project::init(&project_path) {
                 Ok(_) => {
-                    let full_path = canonicalish(path);
+                    let full_path = canonicalish(project_path);
                     println!("Created new empty project at {}", full_path.display());
                 },
                 Err(e) => {
@@ -89,14 +89,14 @@ fn main() {
                             std::process::exit(1);
                         },
                     },
-                    None => 8000,
+                    None => project.serve_port,
                 }
             };
 
             let config = Config {
                 port,
                 verbose,
-                root_path: std::env::current_dir().unwrap(),
+                root_path: project_path,
             };
 
             web::start(config.clone());
