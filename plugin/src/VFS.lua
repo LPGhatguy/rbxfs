@@ -2,7 +2,7 @@ local Net = require(script.Parent.Net)
 
 local VFS = {
 	polling = false,
-	pollingRate = 0.1,
+	pollingRate = 0.2,
 	now = 0,
 	_pollingListeners = {}
 }
