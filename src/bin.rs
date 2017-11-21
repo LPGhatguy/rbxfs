@@ -19,10 +19,12 @@ pub mod vfs;
 
 use std::collections::HashMap;
 use std::path::{Component, Path, PathBuf};
+use std::sync::{Arc, Mutex};
 
 use core::Config;
 use pathext::canonicalish;
 use project::Project;
+use vfs::{Vfs, VfsItem};
 
 fn main() {
     let matches = clap_app!(rbxfs =>
@@ -115,7 +117,27 @@ fn main() {
                 config.mount_points.insert(name.clone(), mount_point);
             }
 
-            web::start(config.clone(), project.clone());
+            let vfs = {
+                let mut vfs = Vfs::new();
+
+                for (name, project_mount_point) in &project.mount_points {
+                    let path = {
+                        let given_path = Path::new(&project_mount_point.path);
+
+                        if given_path.is_absolute() {
+                            given_path.to_path_buf()
+                        } else {
+                            config.root_path.join(given_path)
+                        }
+                    };
+
+                    vfs.partitions.insert(name.clone(), path);
+                }
+
+                Arc::new(Mutex::new(vfs))
+            };
+
+            web::start(config.clone(), project.clone(), vfs.clone());
 
             println!("Server listening on port {}", port);
 

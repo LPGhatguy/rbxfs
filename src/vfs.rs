@@ -4,8 +4,6 @@ use std::fs::{self, File};
 use std::io::Read;
 use std::path::{Path, PathBuf};
 
-use pathext::absoluteify;
-
 /// Represents a virtual layer over multiple parts of the filesystem.
 ///
 /// Paths in this system are represented as slices of strings, and are always
