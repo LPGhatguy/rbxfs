@@ -47,8 +47,6 @@ impl VfsWatcher {
                             let mut vfs = vfs.lock().unwrap();
                             let current_time = vfs.current_time();
 
-                            println!("Change: {} {:?}", partition_name, event);
-
                             match event {
                                 DebouncedEvent::Write(ref change_path) |
                                 DebouncedEvent::Create(ref change_path) |
