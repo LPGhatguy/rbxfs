@@ -3,6 +3,7 @@ use std::collections::HashMap;
 use std::fs::{self, File};
 use std::io::Read;
 use std::path::{Path, PathBuf};
+use std::time::Instant;
 
 /// Represents a virtual layer over multiple parts of the filesystem.
 ///
@@ -13,6 +14,20 @@ pub struct Vfs {
     ///
     /// These must be absolute paths!
     pub partitions: HashMap<String, PathBuf>,
+
+    /// When the Vfs was initialized; used for change tracking.
+    pub start_time: Instant,
+
+    /// A chronologically-sorted list of routes that changed since the Vfs was
+    /// created, along with a timestamp denoting when.
+    pub change_history: Vec<VfsChange>
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct VfsChange {
+    time: f64,
+    route: Vec<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -26,6 +41,8 @@ impl Vfs {
     pub fn new() -> Vfs {
         Vfs {
             partitions: HashMap::new(),
+            start_time: Instant::now(),
+            change_history: Vec::new(),
         }
     }
 
@@ -114,6 +131,21 @@ impl Vfs {
         } else {
             Err(())
         }
+    }
+
+    pub fn current_time(&self) -> f64 {
+        let elapsed = self.start_time.elapsed();
+
+        elapsed.as_secs() as f64 + elapsed.subsec_nanos() as f64 * 1e-9
+    }
+
+    pub fn add_change(&mut self, route: Vec<String>) {
+        let time = self.current_time();
+
+        self.change_history.push(VfsChange {
+            time,
+            route,
+        });
     }
 
     pub fn read<R: Borrow<str>>(&self, route: &[R]) -> Result<VfsItem, ()> {
