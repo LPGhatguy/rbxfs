@@ -1,28 +1,83 @@
+use std::sync::{mpsc, Arc, Mutex};
 use std::thread;
-use std::time;
-use std::sync::{Arc, Mutex};
+use std::time::Duration;
+
+use notify::{DebouncedEvent, RecommendedWatcher, RecursiveMode, Watcher};
 
 use vfs::Vfs;
+use pathext::path_to_route;
 
 pub struct VfsWatcher {
     vfs: Arc<Mutex<Vfs>>,
+    watchers: Vec<RecommendedWatcher>,
 }
 
 impl VfsWatcher {
     pub fn new(vfs: Arc<Mutex<Vfs>>) -> VfsWatcher {
         VfsWatcher {
             vfs,
+            watchers: Vec::new(),
         }
     }
 
-    pub fn start(&mut self) {
-        loop {
-            // Stub to lock the VFS for a brief moment every 200 ms
-            {
-                let mut vfs = self.vfs.lock().unwrap();
-            }
+    pub fn start(mut self) {
+        {
+            let mut outer_vfs = self.vfs.lock().unwrap();
 
-            thread::sleep(time::Duration::from_millis(200));
+            for (partition_name, root_path) in &outer_vfs.partitions {
+                let (tx, rx) = mpsc::channel();
+                let partition_name = partition_name.clone();
+                let root_path = root_path.clone();
+
+                let mut watcher: RecommendedWatcher = Watcher::new(tx, Duration::from_secs(1))
+                    .expect("Unable to create watcher!");
+
+                watcher
+                    .watch(&root_path, RecursiveMode::Recursive)
+                    .expect("Unable to watch path!");
+
+                self.watchers.push(watcher);
+
+                {
+                    let vfs = self.vfs.clone();
+
+                    thread::spawn(move || {
+                        loop {
+                            let event = rx.recv().unwrap();
+                            let mut vfs = vfs.lock().unwrap();
+                            let current_time = vfs.current_time();
+
+                            println!("Change: {} {:?}", partition_name, event);
+
+                            match event {
+                                DebouncedEvent::Write(ref change_path) => {
+                                    if let Some(mut route) = path_to_route(&root_path, change_path) {
+                                        route.insert(0, partition_name.clone());
+
+                                        println!("Write {} / {:?}", change_path.display(), route);
+
+                                        vfs.add_change(current_time, route);
+                                    } else {
+                                        println!("Failed to get route from {}", change_path.display());
+                                    }
+                                },
+                                DebouncedEvent::Create(ref change_path) => {
+                                    println!("Create {}", change_path.display());
+                                },
+                                DebouncedEvent::Remove(ref change_path) => {
+                                    println!("Remove {}", change_path.display());
+                                },
+                                DebouncedEvent::Rename(ref from, ref to) => {
+                                    println!("Rename {} to {}", from.display(), to.display());
+                                },
+                                _ => {},
+                            }
+                        }
+                    });
+                }
+            }
         }
+
+        loop {}
     }
 }

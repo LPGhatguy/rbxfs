@@ -1,6 +1,41 @@
 use std::env::current_dir;
 use std::path::{Component, Path, PathBuf};
 
+/// Converts a path to a 'route', used as the paths in rbxfs.
+pub fn path_to_route<A, B>(root: A, value: B) -> Option<Vec<String>>
+where
+    A: AsRef<Path>,
+    B: AsRef<Path>,
+{
+    let root = root.as_ref();
+    let value = value.as_ref();
+
+    let relative = match value.strip_prefix(root) {
+        Ok(v) => v,
+        Err(_) => return None,
+    };
+
+    let result = relative
+        .components()
+        .map(|component| {
+            component.as_os_str().to_string_lossy().into_owned()
+        })
+        .collect::<Vec<_>>();
+
+    Some(result)
+}
+
+#[test]
+fn test_path_to_route() {
+    fn t(root: &Path, value: &Path, result: Option<Vec<String>>) {
+        assert_eq!(path_to_route(root, value), result);
+    }
+
+    t(Path::new("/a/b/c"), Path::new("/a/b/c/d"), Some(vec!["d".to_string()]));
+    t(Path::new("/a/b"), Path::new("a"), None);
+    t(Path::new("C:\\foo"), Path::new("C:\\foo\\bar\\baz"), Some(vec!["bar".to_string(), "baz".to_string()]));
+}
+
 /// Turns the path into an absolute one, using the current working directory if
 /// necessary.
 pub fn canonicalish<T: AsRef<Path>>(value: T) -> PathBuf {
@@ -9,7 +44,13 @@ pub fn canonicalish<T: AsRef<Path>>(value: T) -> PathBuf {
     absoluteify(&cwd, value)
 }
 
-pub fn absoluteify<A: AsRef<Path>, B: AsRef<Path>>(root: A, value: B) -> PathBuf {
+/// Converts the given path to be absolute if it isn't already using a given
+/// root.
+pub fn absoluteify<A, B>(root: A, value: B) -> PathBuf
+where
+    A: AsRef<Path>,
+    B: AsRef<Path>,
+{
     let root = root.as_ref();
     let value = value.as_ref();
 

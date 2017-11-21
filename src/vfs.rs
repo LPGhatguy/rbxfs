@@ -20,7 +20,7 @@ pub struct Vfs {
 
     /// A chronologically-sorted list of routes that changed since the Vfs was
     /// created, along with a timestamp denoting when.
-    pub change_history: Vec<VfsChange>
+    pub change_history: Vec<VfsChange>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -139,9 +139,7 @@ impl Vfs {
         elapsed.as_secs() as f64 + elapsed.subsec_nanos() as f64 * 1e-9
     }
 
-    pub fn add_change(&mut self, route: Vec<String>) {
-        let time = self.current_time();
-
+    pub fn add_change(&mut self, time: f64, route: Vec<String>) {
         self.change_history.push(VfsChange {
             time,
             route,

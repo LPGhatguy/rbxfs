@@ -1,6 +1,6 @@
 use std::io::Read;
-use std::thread;
 use std::sync::{Arc, Mutex};
+use std::thread;
 
 use rouille;
 use serde;

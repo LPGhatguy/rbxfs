@@ -8,9 +8,9 @@ extern crate rouille;
 extern crate clap;
 
 extern crate notify;
+extern crate rand;
 extern crate serde;
 extern crate serde_json;
-extern crate rand;
 
 pub mod web;
 pub mod core;
@@ -142,7 +142,12 @@ fn main() {
                     };
 
                     if verbose {
-                        println!("Partition '{}': {} @ {}", name, project_partition.target, project_partition.path);
+                        println!(
+                            "Partition '{}': {} @ {}",
+                            name,
+                            project_partition.target,
+                            project_partition.path
+                        );
                     }
 
                     vfs.partitions.insert(name.clone(), path);
@@ -155,9 +160,7 @@ fn main() {
                 let vfs = vfs.clone();
 
                 thread::spawn(move || {
-                    let mut watcher = VfsWatcher::new(vfs);
-
-                    watcher.start();
+                    VfsWatcher::new(vfs).start();
                 });
             }
 
