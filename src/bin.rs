@@ -17,14 +17,17 @@ pub mod core;
 pub mod project;
 pub mod pathext;
 pub mod vfs;
+pub mod vfs_watch;
 
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
+use std::thread;
 
 use core::Config;
 use pathext::canonicalish;
 use project::Project;
 use vfs::Vfs;
+use vfs_watch::VfsWatcher;
 
 fn main() {
     let matches = clap_app!(rbxfs =>
@@ -147,6 +150,16 @@ fn main() {
 
                 Arc::new(Mutex::new(vfs))
             };
+
+            {
+                let vfs = vfs.clone();
+
+                thread::spawn(move || {
+                    let mut watcher = VfsWatcher::new(vfs);
+
+                    watcher.start();
+                });
+            }
 
             web::start(config.clone(), project.clone(), vfs.clone());
 
