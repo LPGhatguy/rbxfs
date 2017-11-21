@@ -11,11 +11,13 @@ extern crate notify;
 extern crate serde;
 extern crate serde_json;
 
-mod web;
-mod core;
-mod project;
-mod pathext;
+pub mod web;
+pub mod core;
+pub mod project;
+pub mod pathext;
+pub mod vfs;
 
+use std::collections::HashMap;
 use std::path::{Component, Path, PathBuf};
 
 use core::Config;
@@ -56,10 +58,10 @@ fn main() {
         ("init", sub_matches) => {
             let sub_matches = sub_matches.unwrap();
             let project_path = Path::new(sub_matches.value_of("PATH").unwrap_or("."));
+            let full_path = canonicalish(project_path);
 
-            match Project::init(&project_path) {
+            match Project::init(&full_path) {
                 Ok(_) => {
-                    let full_path = canonicalish(project_path);
                     println!("Created new empty project at {}", full_path.display());
                 },
                 Err(e) => {
@@ -76,9 +78,16 @@ fn main() {
                 None => std::env::current_dir().unwrap(),
             };
 
-            let project = Project::load(&project_path).unwrap_or(Project::default());
-
-            println!("Loaded project: {:?}", project);
+            let project = match Project::load(&project_path) {
+                Ok(v) => {
+                    println!("Using project from {}", project_path.display());
+                    v
+                },
+                Err(_) => {
+                    println!("Using default project...");
+                    Project::default()
+                },
+            };
 
             let port = {
                 match sub_matches.value_of("port") {
@@ -93,13 +102,20 @@ fn main() {
                 }
             };
 
-            let config = Config {
+            let mut config = Config {
                 port,
                 verbose,
                 root_path: project_path,
+                mount_points: HashMap::new(),
             };
 
-            web::start(config.clone());
+            for (name, project_mount_point) in &project.mount_points {
+                let mount_point = project_mount_point.to_mount_point(&config);
+
+                config.mount_points.insert(name.clone(), mount_point);
+            }
+
+            web::start(config.clone(), project.clone());
 
             println!("Server listening on port {}", port);
 

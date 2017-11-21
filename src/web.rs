@@ -1,3 +1,4 @@
+use std::borrow::Borrow;
 use std::collections::HashMap;
 use std::fs::{self, File};
 use std::io::Read;
@@ -9,6 +10,10 @@ use serde;
 use serde_json;
 
 use core::Config;
+use pathext::absoluteify;
+use project::Project;
+
+static MAX_BODY_SIZE: usize = 25 * 1024 * 1025; // 25 MiB
 
 static SERVER_INFO: ServerInfo = ServerInfo {
     server_version: env!("CARGO_PKG_VERSION"),
@@ -18,7 +23,10 @@ static SERVER_INFO: ServerInfo = ServerInfo {
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", tag = "type")]
 enum FsItem {
-    File { path: Vec<String>, contents: String },
+    File {
+        path: Vec<String>,
+        contents: String,
+    },
     Dir {
         path: Vec<String>,
         children: HashMap<String, FsItem>,
@@ -128,12 +136,88 @@ fn read_all<T: AsRef<Path>>(root: T) -> FsItem {
     read(&root, &root).unwrap()
 }
 
+fn read_net<T: Borrow<str>>(config: &Config, target: &[T]) -> Option<FsItem> {
+    let (mount_name, rest_path) = match target.split_first() {
+        Some((first, rest)) => (first.borrow(), rest),
+        None => return None,
+    };
+
+    let mount = match config.mount_points.get(mount_name) {
+        Some(v) => v,
+        None => return None,
+    };
+
+    let mount_path = absoluteify(&config.root_path, &mount.path);
+
+    let full_path = {
+        let joined = rest_path.join("/");
+        let relative = Path::new(&joined);
+
+        mount_path.join(relative)
+    };
+
+    println!("Mount path {:?}", mount_path);
+    println!("Target path {:?}", full_path);
+
+    None
+}
+
 fn json<T: serde::Serialize>(value: T) -> rouille::Response {
     let data = serde_json::to_string(&value).unwrap();
     rouille::Response::from_data("application/json", data)
 }
 
-pub fn start(config: Config) {
+fn read_json_text(request: &rouille::Request) -> Option<String> {
+    match request.header("Content-Type") {
+        Some(header) => if !header.starts_with("application/json") {
+            return None;
+        },
+        None => return None,
+    }
+
+    let body = match request.data() {
+        Some(v) => v,
+        None => return None,
+    };
+
+    let mut out = Vec::new();
+    match body.take(MAX_BODY_SIZE.saturating_add(1) as u64)
+        .read_to_end(&mut out)
+    {
+        Ok(_) => {},
+        Err(_) => return None,
+    }
+
+    if out.len() > MAX_BODY_SIZE {
+        return None;
+    }
+
+    let parsed = match String::from_utf8(out) {
+        Ok(v) => v,
+        Err(_) => return None,
+    };
+
+    Some(parsed)
+}
+
+fn read_json<T>(request: &rouille::Request) -> Option<T>
+where
+    T: serde::de::DeserializeOwned,
+{
+    let body = match read_json_text(&request) {
+        Some(v) => v,
+        None => return None,
+    };
+
+    let parsed = match serde_json::from_str(&body) {
+        Ok(v) => v,
+        Err(_) => return None,
+    };
+
+    Some(parsed)
+}
+
+pub fn start(config: Config, project: Project) {
     let address = format!("localhost:{}", config.port);
 
     thread::spawn(move || {
@@ -143,12 +227,22 @@ pub fn start(config: Config) {
 					json(&SERVER_INFO)
 				},
 
+                (GET) (/project) => {
+                    json(&project)
+                },
+
 				(GET) (/read_all) => {
-                    json(read_all(&config.root_path))
+                    // json(read_all(&config.root_path))
+                    rouille::Response::text("Nope")
 				},
 
 				(POST) (/read) => {
-                    rouille::Response::text("Got a read!")
+                    let read_request: Vec<Vec<String>> = match read_json(&request) {
+                        Some(v) => v,
+                        None => return rouille::Response::empty_404(),
+                    };
+
+                    json(read_net(&config, &read_request[0]))
 				},
 
                 (POST) (/write) => {

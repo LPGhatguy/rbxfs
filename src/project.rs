@@ -6,6 +6,8 @@ use std::path::{Path, PathBuf};
 
 use serde_json;
 
+use core::{Config, MountPoint};
+
 pub static PROJECT_FILENAME: &'static str = "rbxfs.json";
 
 #[derive(Debug)]
@@ -41,19 +43,40 @@ impl fmt::Display for ProjectInitError {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct MountPoint {
-    pub path: PathBuf,
+pub struct ProjectMountPoint {
+    pub path: String,
     pub target: String,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+impl ProjectMountPoint {
+    pub fn to_mount_point(&self, config: &Config) -> MountPoint {
+        let path = {
+            let given_path = Path::new(&self.path);
+
+            if given_path.is_absolute() {
+                given_path.to_path_buf()
+            } else {
+                config.root_path.join(given_path)
+            }
+        };
+
+        let target = self.target.split(".").map(String::from).collect::<Vec<_>>();
+
+        MountPoint {
+            path,
+            target,
+        }
+    }
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(default, rename_all = "camelCase")]
 pub struct Project {
     pub name: String,
     pub serve_port: u64,
-    pub mount_points: HashMap<String, MountPoint>,
+    pub mount_points: HashMap<String, ProjectMountPoint>,
 }
 
 impl Project {

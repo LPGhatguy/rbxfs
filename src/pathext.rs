@@ -4,13 +4,19 @@ use std::path::{Component, Path, PathBuf};
 /// Turns the path into an absolute one, using the current working directory if
 /// necessary.
 pub fn canonicalish<T: AsRef<Path>>(value: T) -> PathBuf {
+    let cwd = current_dir().unwrap();
+
+    absoluteify(&cwd, value)
+}
+
+pub fn absoluteify<A: AsRef<Path>, B: AsRef<Path>>(root: A, value: B) -> PathBuf {
+    let root = root.as_ref();
     let value = value.as_ref();
 
     if value.is_absolute() {
         PathBuf::from(value)
     } else {
-        let cwd = current_dir().unwrap();
-        cwd.join(value)
+        root.join(value)
     }
 }
 
