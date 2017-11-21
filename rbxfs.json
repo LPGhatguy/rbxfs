@@ -1,7 +1,7 @@
 {
   "name": "rbxfs",
   "servePort": 8000,
-  "mountPoints": {
+  "partitions": {
     "src": {
       "path": "plugin/src",
       "target": "ReplicatedStorage.src"

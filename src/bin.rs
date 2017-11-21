@@ -10,6 +10,7 @@ extern crate clap;
 extern crate notify;
 extern crate serde;
 extern crate serde_json;
+extern crate rand;
 
 pub mod web;
 pub mod core;
@@ -17,14 +18,13 @@ pub mod project;
 pub mod pathext;
 pub mod vfs;
 
-use std::collections::HashMap;
-use std::path::{Component, Path, PathBuf};
+use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 
 use core::Config;
 use pathext::canonicalish;
 use project::Project;
-use vfs::{Vfs, VfsItem};
+use vfs::Vfs;
 
 fn main() {
     let matches = clap_app!(rbxfs =>
@@ -56,6 +56,12 @@ fn main() {
         _ => true,
     };
 
+    let server_id = rand::random::<u64>();
+
+    if verbose {
+        println!("Server ID: {}", server_id);
+    }
+
     match matches.subcommand() {
         ("init", sub_matches) => {
             let sub_matches = sub_matches.unwrap();
@@ -79,6 +85,10 @@ fn main() {
                 Some(v) => PathBuf::from(v),
                 None => std::env::current_dir().unwrap(),
             };
+
+            if verbose {
+                println!("Attempting to locate project at {}", project_path.display());
+            }
 
             let project = match Project::load(&project_path) {
                 Ok(v) => {
@@ -104,32 +114,33 @@ fn main() {
                 }
             };
 
-            let mut config = Config {
+            let config = Config {
                 port,
                 verbose,
-                root_path: project_path,
-                mount_points: HashMap::new(),
+                server_id,
             };
 
-            for (name, project_mount_point) in &project.mount_points {
-                let mount_point = project_mount_point.to_mount_point(&config);
-
-                config.mount_points.insert(name.clone(), mount_point);
+            if verbose {
+                println!("Loading VFS...");
             }
 
             let vfs = {
                 let mut vfs = Vfs::new();
 
-                for (name, project_mount_point) in &project.mount_points {
+                for (name, project_partition) in &project.partitions {
                     let path = {
-                        let given_path = Path::new(&project_mount_point.path);
+                        let given_path = Path::new(&project_partition.path);
 
                         if given_path.is_absolute() {
                             given_path.to_path_buf()
                         } else {
-                            config.root_path.join(given_path)
+                            project_path.join(given_path)
                         }
                     };
+
+                    if verbose {
+                        println!("Partition '{}': {} @ {}", name, project_partition.target, project_partition.path);
+                    }
 
                     vfs.partitions.insert(name.clone(), path);
                 }

@@ -2,11 +2,9 @@ use std::collections::HashMap;
 use std::fmt;
 use std::fs::{self, File};
 use std::io::{Read, Write};
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
 use serde_json;
-
-use core::{Config, MountPoint};
 
 pub static PROJECT_FILENAME: &'static str = "rbxfs.json";
 
@@ -45,30 +43,9 @@ impl fmt::Display for ProjectInitError {
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct ProjectMountPoint {
+pub struct ProjectPartition {
     pub path: String,
     pub target: String,
-}
-
-impl ProjectMountPoint {
-    pub fn to_mount_point(&self, config: &Config) -> MountPoint {
-        let path = {
-            let given_path = Path::new(&self.path);
-
-            if given_path.is_absolute() {
-                given_path.to_path_buf()
-            } else {
-                config.root_path.join(given_path)
-            }
-        };
-
-        let target = self.target.split(".").map(String::from).collect::<Vec<_>>();
-
-        MountPoint {
-            path,
-            target,
-        }
-    }
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -76,7 +53,7 @@ impl ProjectMountPoint {
 pub struct Project {
     pub name: String,
     pub serve_port: u64,
-    pub mount_points: HashMap<String, ProjectMountPoint>,
+    pub partitions: HashMap<String, ProjectPartition>,
 }
 
 impl Project {
@@ -164,7 +141,7 @@ impl Default for Project {
         Project {
             name: "some-project".to_string(),
             serve_port: 8000,
-            mount_points: HashMap::new(),
+            partitions: HashMap::new(),
         }
     }
 }

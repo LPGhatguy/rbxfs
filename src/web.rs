@@ -1,8 +1,4 @@
-use std::borrow::Borrow;
-use std::collections::HashMap;
-use std::fs::{self, File};
 use std::io::Read;
-use std::path::{Component, Path};
 use std::thread;
 use std::sync::{Arc, Mutex};
 
@@ -16,16 +12,20 @@ use vfs::{Vfs, VfsItem};
 
 static MAX_BODY_SIZE: usize = 25 * 1024 * 1025; // 25 MiB
 
-static SERVER_INFO: ServerInfo = ServerInfo {
-    server_version: env!("CARGO_PKG_VERSION"),
-    protocol_version: 0,
-};
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct ServerInfo<'a> {
+    server_version: &'static str,
+    protocol_version: u64,
+    server_id: &'a str,
+    project: &'a Project,
+}
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
-struct ServerInfo {
-    server_version: &'static str,
-    protocol_version: u64,
+struct ReadResult<'a> {
+    items: Vec<Option<VfsItem>>,
+    server_id: &'a str,
 }
 
 fn json<T: serde::Serialize>(value: T) -> rouille::Response {
@@ -86,16 +86,19 @@ where
 pub fn start(config: Config, project: Project, vfs: Arc<Mutex<Vfs>>) {
     let address = format!("localhost:{}", config.port);
 
+    let server_id = config.server_id.to_string();
+
     thread::spawn(move || {
         rouille::start_server(address, move |request| {
             router!(request,
 				(GET) (/) => {
-					json(&SERVER_INFO)
+					json(ServerInfo {
+                        server_version: env!("CARGO_PKG_VERSION"),
+                        protocol_version: 0,
+                        server_id: &server_id,
+                        project: &project,
+                    })
 				},
-
-                (GET) (/project) => {
-                    json(&project)
-                },
 
 				(POST) (/read) => {
                     let read_request: Vec<Vec<String>> = match read_json(&request) {
@@ -103,26 +106,29 @@ pub fn start(config: Config, project: Project, vfs: Arc<Mutex<Vfs>>) {
                         None => return rouille::Response::empty_404(),
                     };
 
-                    let result = {
+                    let items = {
                         let vfs = vfs.lock().unwrap();
 
-                        let mut result = Vec::new();
+                        let mut items = Vec::new();
 
                         for route in &read_request {
                             match vfs.read(&route) {
-                                Ok(v) => result.push(Some(v)),
-                                Err(_) => result.push(None),
+                                Ok(v) => items.push(Some(v)),
+                                Err(_) => items.push(None),
                             }
                         }
 
-                        result
+                        items
                     };
 
-                    json(result)
+                    json(ReadResult {
+                        server_id: &server_id,
+                        items,
+                    })
 				},
 
                 (POST) (/write) => {
-                    rouille::Response::text("Got a write!")
+                    rouille::Response::empty_404()
                 },
 
 				_ => rouille::Response::empty_404()

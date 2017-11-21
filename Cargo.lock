@@ -491,6 +491,7 @@ version = "0.1.0"
 dependencies = [
  "clap 2.27.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "notify 4.0.2 (registry+https://github.com/rust-lang/crates.io-index)",
+ "rand 0.3.18 (registry+https://github.com/rust-lang/crates.io-index)",
  "rouille 1.0.3 (registry+https://github.com/rust-lang/crates.io-index)",
  "serde 1.0.19 (registry+https://github.com/rust-lang/crates.io-index)",
  "serde_derive 1.0.19 (registry+https://github.com/rust-lang/crates.io-index)",
