@@ -8,7 +8,7 @@ use serde_json;
 
 use core::Config;
 use project::Project;
-use vfs::{Vfs, VfsItem};
+use vfs::{Vfs, VfsItem, VfsChange};
 
 static MAX_BODY_SIZE: usize = 25 * 1024 * 1025; // 25 MiB
 
@@ -26,6 +26,14 @@ struct ServerInfo<'a> {
 #[serde(rename_all = "camelCase")]
 struct ReadResult<'a> {
     items: Vec<Option<VfsItem>>,
+    server_id: &'a str,
+    current_time: f64,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct ChangesResult<'a> {
+    changes: &'a [VfsChange],
     server_id: &'a str,
     current_time: f64,
 }
@@ -108,6 +116,18 @@ pub fn start(config: Config, project: Project, vfs: Arc<Mutex<Vfs>>) {
                         current_time,
                     })
 				},
+
+                (GET) (/changes/{ last_time: f64 }) => {
+                    let vfs = vfs.lock().unwrap();
+                    let current_time = vfs.current_time();
+                    let changes = vfs.changes_since(last_time);
+
+                    json(ChangesResult {
+                        changes,
+                        server_id: &server_id,
+                        current_time,
+                    })
+                },
 
 				(POST) (/read) => {
                     let read_request: Vec<Vec<String>> = match read_json(&request) {

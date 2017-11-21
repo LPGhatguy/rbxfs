@@ -22,7 +22,7 @@ impl VfsWatcher {
 
     pub fn start(mut self) {
         {
-            let mut outer_vfs = self.vfs.lock().unwrap();
+            let outer_vfs = self.vfs.lock().unwrap();
 
             for (partition_name, root_path) in &outer_vfs.partitions {
                 let (tx, rx) = mpsc::channel();
@@ -50,7 +50,9 @@ impl VfsWatcher {
                             println!("Change: {} {:?}", partition_name, event);
 
                             match event {
-                                DebouncedEvent::Write(ref change_path) => {
+                                DebouncedEvent::Write(ref change_path) |
+                                DebouncedEvent::Create(ref change_path) |
+                                DebouncedEvent::Remove(ref change_path) => {
                                     if let Some(mut route) = path_to_route(&root_path, change_path) {
                                         route.insert(0, partition_name.clone());
 
@@ -61,14 +63,26 @@ impl VfsWatcher {
                                         println!("Failed to get route from {}", change_path.display());
                                     }
                                 },
-                                DebouncedEvent::Create(ref change_path) => {
-                                    println!("Create {}", change_path.display());
-                                },
-                                DebouncedEvent::Remove(ref change_path) => {
-                                    println!("Remove {}", change_path.display());
-                                },
-                                DebouncedEvent::Rename(ref from, ref to) => {
-                                    println!("Rename {} to {}", from.display(), to.display());
+                                DebouncedEvent::Rename(ref from_change, ref to_change) => {
+                                    if let Some(mut route) = path_to_route(&root_path, from_change) {
+                                        route.insert(0, partition_name.clone());
+
+                                        println!("Write {} / {:?}", from_change.display(), route);
+
+                                        vfs.add_change(current_time, route);
+                                    } else {
+                                        println!("Failed to get route from {}", from_change.display());
+                                    }
+
+                                    if let Some(mut route) = path_to_route(&root_path, to_change) {
+                                        route.insert(0, partition_name.clone());
+
+                                        println!("Write {} / {:?}", to_change.display(), route);
+
+                                        vfs.add_change(current_time, route);
+                                    } else {
+                                        println!("Failed to get route from {}", to_change.display());
+                                    }
                                 },
                                 _ => {},
                             }

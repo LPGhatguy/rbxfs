@@ -26,7 +26,7 @@ pub struct Vfs {
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct VfsChange {
-    time: f64,
+    timestamp: f64,
     route: Vec<String>,
 }
 
@@ -139,11 +139,29 @@ impl Vfs {
         elapsed.as_secs() as f64 + elapsed.subsec_nanos() as f64 * 1e-9
     }
 
-    pub fn add_change(&mut self, time: f64, route: Vec<String>) {
+    pub fn add_change(&mut self, timestamp: f64, route: Vec<String>) {
         self.change_history.push(VfsChange {
-            time,
+            timestamp,
             route,
         });
+    }
+
+    pub fn changes_since(&self, timestamp: f64) -> &[VfsChange] {
+        let mut marker: Option<usize> = None;
+
+        for (index, value) in self.change_history.iter().enumerate().rev() {
+            if value.timestamp >= timestamp {
+                marker = Some(index);
+            } else {
+                break;
+            }
+        }
+
+        if let Some(index) = marker {
+            &self.change_history[index..]
+        } else {
+            &self.change_history[..0]
+        }
     }
 
     pub fn read<R: Borrow<str>>(&self, route: &[R]) -> Result<VfsItem, ()> {
