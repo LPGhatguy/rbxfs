@@ -1,6 +1,6 @@
 {
   "name": "rbxfs",
-  "servePort": 8000,
+  "servePort": 8081,
   "partitions": {
     "src": {
       "path": "plugin/src",
