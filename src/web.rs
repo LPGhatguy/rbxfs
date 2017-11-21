@@ -19,6 +19,7 @@ struct ServerInfo<'a> {
     protocol_version: u64,
     server_id: &'a str,
     project: &'a Project,
+    current_time: f64,
 }
 
 #[derive(Debug, Serialize)]
@@ -26,6 +27,7 @@ struct ServerInfo<'a> {
 struct ReadResult<'a> {
     items: Vec<Option<VfsItem>>,
     server_id: &'a str,
+    current_time: f64,
 }
 
 fn json<T: serde::Serialize>(value: T) -> rouille::Response {
@@ -92,11 +94,18 @@ pub fn start(config: Config, project: Project, vfs: Arc<Mutex<Vfs>>) {
         rouille::start_server(address, move |request| {
             router!(request,
 				(GET) (/) => {
+                    let current_time = {
+                        let vfs = vfs.lock().unwrap();
+
+                        vfs.current_time()
+                    };
+
 					json(ServerInfo {
                         server_version: env!("CARGO_PKG_VERSION"),
                         protocol_version: 0,
                         server_id: &server_id,
                         project: &project,
+                        current_time,
                     })
 				},
 
@@ -106,8 +115,10 @@ pub fn start(config: Config, project: Project, vfs: Arc<Mutex<Vfs>>) {
                         None => return rouille::Response::empty_404(),
                     };
 
-                    let items = {
+                    let (items, current_time) = {
                         let vfs = vfs.lock().unwrap();
+
+                        let current_time = vfs.current_time();
 
                         let mut items = Vec::new();
 
@@ -118,12 +129,13 @@ pub fn start(config: Config, project: Project, vfs: Arc<Mutex<Vfs>>) {
                             }
                         }
 
-                        items
+                        (items, current_time)
                     };
 
                     json(ReadResult {
                         server_id: &server_id,
                         items,
+                        current_time,
                     })
 				},
 
