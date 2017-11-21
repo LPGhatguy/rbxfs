@@ -11,6 +11,9 @@ use pathext::absoluteify;
 /// Paths in this system are represented as slices of strings, and are always
 /// relative to a partition, which is an absolute path into the real filesystem.
 pub struct Vfs {
+    /// Contains all of the partitions mounted by the Vfs.
+    ///
+    /// These must be absolute paths!
     pub partitions: HashMap<String, PathBuf>,
 }
 
