@@ -22,7 +22,7 @@ function HttpResponse:andThen(success, failure)
 		if failure then
 			return failure(failure)
 		else
-			self:report()
+			error(tostring(self.error))
 		end
 	end
 end
@@ -33,10 +33,6 @@ end
 
 function HttpResponse:json()
 	return HttpService:JSONDecode(self.body)
-end
-
-function HttpResponse:report()
-	self.error:report()
 end
 
 return HttpResponse

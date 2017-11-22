@@ -98,6 +98,28 @@ function Foop.new(address, port)
 
 	setmetatable(foop, Foop)
 
+	do
+		local screenGui = Instance.new("ScreenGui")
+		screenGui.Name = "rbxfs ui"
+		screenGui.Parent = game.CoreGui
+		screenGui.DisplayOrder = -1
+		screenGui.Enabled = false
+
+		local label = Instance.new("TextLabel")
+		label.Font = Enum.Font.SourceSans
+		label.TextSize = 20
+		label.Text = "rbxfs polling"
+		label.BackgroundColor3 = Color3.new(0, 0, 0)
+		label.BackgroundTransparency = 0.6
+		label.BorderSizePixel = 0
+		label.TextColor3 = Color3.new(1, 1, 1)
+		label.Size = UDim2.new(0, 120, 0, 22)
+		label.Position = UDim2.new(0, 0, 0, 0)
+		label.Parent = screenGui
+
+		foop._label = screenGui
+	end
+
 	return foop
 end
 
@@ -112,7 +134,13 @@ function Foop:server()
 end
 
 function Foop:connect()
-	self:server()
+	print("Testing connection...")
+
+	local response = self:server():ping()
+
+	print("Server found!")
+	print("Protocol version:", response.protocolVersion)
+	print("Server version:", response.serverVersion)
 end
 
 function Foop:poll()
@@ -120,9 +148,10 @@ function Foop:poll()
 		return
 	end
 
-	self._polling = true
+	print("Starting to poll...")
 
-	print("Polling for changes...")
+	self._polling = true
+	self._label.Enabled = true
 
 	while true do
 		local changes = self:server():getChanges()
@@ -152,9 +181,13 @@ function Foop:poll()
 end
 
 function Foop:syncIn()
+	print("Syncing from server...")
+
 	local response = self:server():read({{"src"}})
 
 	write(game, {"ReplicatedStorage", "src"}, response[1])
+
+	print("Synced successfully!")
 end
 
 return Foop

@@ -37,11 +37,6 @@ function ServerContext:_start()
 			self.serverId = response.serverId
 			self.currentTime = response.currentTime
 			self.project = response.project
-
-			print(("Connected!\nServer version: %s\nProtocol version: %s"):format(
-				response.serverVersion,
-				response.protocolVersion
-			))
 		end)
 end
 
@@ -64,6 +59,18 @@ function ServerContext:_validateResponse(response)
 	end
 
 	return true
+end
+
+function ServerContext:ping()
+	self:_validate()
+
+	return self.http
+		:get("/")
+		:andThen(function(response)
+			response = response:json()
+
+			return response
+		end)
 end
 
 function ServerContext:read(paths)

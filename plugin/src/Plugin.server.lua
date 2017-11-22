@@ -12,7 +12,7 @@ local function main()
 
 	local toolbar = plugin:CreateToolbar("rbxfs 2.0")
 
-	toolbar:CreateButton("Connect", "Connect to RBXFS Server", "")
+	toolbar:CreateButton("Test Connection", "Connect to RBXFS Server", "")
 		.Click:Connect(function()
 			foop:connect()
 		end)
