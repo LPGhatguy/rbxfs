@@ -54,8 +54,6 @@ impl VfsWatcher {
                                     if let Some(mut route) = path_to_route(&root_path, change_path) {
                                         route.insert(0, partition_name.clone());
 
-                                        println!("Write {} / {:?}", change_path.display(), route);
-
                                         vfs.add_change(current_time, route);
                                     } else {
                                         println!("Failed to get route from {}", change_path.display());
@@ -65,8 +63,6 @@ impl VfsWatcher {
                                     if let Some(mut route) = path_to_route(&root_path, from_change) {
                                         route.insert(0, partition_name.clone());
 
-                                        println!("Write {} / {:?}", from_change.display(), route);
-
                                         vfs.add_change(current_time, route);
                                     } else {
                                         println!("Failed to get route from {}", from_change.display());
@@ -74,8 +70,6 @@ impl VfsWatcher {
 
                                     if let Some(mut route) = path_to_route(&root_path, to_change) {
                                         route.insert(0, partition_name.clone());
-
-                                        println!("Write {} / {:?}", to_change.display(), route);
 
                                         vfs.add_change(current_time, route);
                                     } else {
