@@ -17,10 +17,10 @@ end
 
 function HttpResponse:andThen(success, failure)
 	if self:isOk() then
-		success(self)
+		return success(self)
 	else
 		if failure then
-			failure(failure)
+			return failure(failure)
 		else
 			self:report()
 		end

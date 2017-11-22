@@ -2,27 +2,31 @@ if not plugin then
 	return
 end
 
-local Http = require(script.Parent.Http)
-local ServerContext = require(script.Parent.ServerContext)
+local Foop = require(script.Parent.Foop)
 
 local function main()
 	local address = "localhost"
 	local port = 8081
 
-	local remote = ("http://%s:%d"):format(address, port)
-	local http = Http.new(remote)
-	local server = ServerContext.new(http)
+	local foop = Foop.new(address, port)
 
 	local toolbar = plugin:CreateToolbar("rbxfs 2.0")
 
 	toolbar:CreateButton("Connect", "Connect to RBXFS Server", "")
 		.Click:Connect(function()
-			server:connect()
+			foop:connect()
 		end)
 
-	toolbar:CreateButton("Get Changes", "", "")
+	toolbar:CreateButton("Sync In", "Sync into Roblox Studio", "")
 		.Click:Connect(function()
-			server:getChanges()
+			foop:syncIn()
+		end)
+
+	toolbar:CreateButton("Poll", "Poll server for changes", "")
+		.Click:Connect(function()
+			spawn(function()
+				foop:poll()
+			end)
 		end)
 end
 
