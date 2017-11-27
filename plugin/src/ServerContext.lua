@@ -3,6 +3,8 @@ local HttpService = game:GetService("HttpService")
 local ServerContext = {}
 ServerContext.__index = ServerContext
 
+ServerContext.Replaced = newproxy(true)
+
 --[[
 	Create a new ServerContext using the given HTTP implementation and replacer.
 
@@ -23,14 +25,13 @@ function ServerContext.connect(http, replacer)
 
 	setmetatable(context, ServerContext)
 
-	context:_start()
+	context:_start():await()
 
 	return context
 end
 
 function ServerContext:_start()
-	self.http
-		:get("/")
+	return self.http:get("/")
 		:andThen(function(response)
 			response = response:json()
 
@@ -64,10 +65,13 @@ end
 function ServerContext:ping()
 	self:_validate()
 
-	return self.http
-		:get("/")
+	return self.http:get("/")
 		:andThen(function(response)
 			response = response:json()
+
+			if not self:_validateResponse(response) then
+				return ServerContext.Replaced
+			end
 
 			return response
 		end)
@@ -78,13 +82,12 @@ function ServerContext:read(paths)
 
 	local body = HttpService:JSONEncode(paths)
 
-	return self.http
-		:post("/read", body)
+	return self.http:post("/read", body)
 		:andThen(function(response)
 			response = response:json()
 
 			if not self:_validateResponse(response) then
-				return
+				return ServerContext.Replaced
 			end
 
 			return response.items
@@ -96,13 +99,12 @@ function ServerContext:getChanges()
 
 	local url = ("/changes/%f"):format(self.currentTime)
 
-	return self.http
-		:get(url)
+	return self.http:get(url)
 		:andThen(function(response)
 			response = response:json()
 
 			if not self:_validateResponse(response) then
-				return
+				return ServerContext.Replaced
 			end
 
 			self.currentTime = response.currentTime

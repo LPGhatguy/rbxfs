@@ -2,6 +2,7 @@
 	What the heck do I name this?
 ]]
 
+local Config = require(script.Parent.Config)
 local Http = require(script.Parent.Http)
 local ServerContext = require(script.Parent.ServerContext)
 
@@ -136,11 +137,14 @@ end
 function Foop:connect()
 	print("Testing connection...")
 
-	local response = self:server():ping()
-
-	print("Server found!")
-	print("Protocol version:", response.protocolVersion)
-	print("Server version:", response.serverVersion)
+	self:server():ping()
+		:andThen(function(result)
+			print("Server found!")
+			print("Protocol version:", result.protocolVersion)
+			print("Server version:", result.serverVersion)
+		end, function(err)
+			print("FAILURE", err)
+		end)
 end
 
 function Foop:poll()
@@ -154,7 +158,7 @@ function Foop:poll()
 	self._label.Enabled = true
 
 	while true do
-		local changes = self:server():getChanges()
+		local changes = self:server():getChanges():await()
 
 		local routes = {}
 
@@ -162,7 +166,7 @@ function Foop:poll()
 			table.insert(routes, change.route)
 		end
 
-		local items = self:server():read(routes)
+		local items = self:server():read(routes):await()
 
 		for index = 1, #routes do
 			local route = routes[index]
@@ -176,14 +180,14 @@ function Foop:poll()
 			write(game, fullRoute, item)
 		end
 
-		wait(0.3)
+		wait(Config.pollingRate)
 	end
 end
 
 function Foop:syncIn()
 	print("Syncing from server...")
 
-	local response = self:server():read({{"src"}})
+	local response = self:server():read({{"src"}}):await()
 
 	write(game, {"ReplicatedStorage", "src"}, response[1])
 

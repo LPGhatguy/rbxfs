@@ -1,5 +1,6 @@
 local HttpService = game:GetService("HttpService")
 
+local Promise = require(script.Parent.Promise)
 local HttpError = require(script.Parent.HttpError)
 local HttpResponse = require(script.Parent.HttpResponse)
 
@@ -19,31 +20,35 @@ function Http.new(baseUrl)
 end
 
 function Http:get(endpoint)
-	local err = nil
-	local ok, result = pcall(function()
-		return HttpService:GetAsync(self.baseUrl .. endpoint, true)
+	return Promise.new(function(resolve, reject)
+		spawn(function()
+			local ok, result = pcall(function()
+				return HttpService:GetAsync(self.baseUrl .. endpoint, true)
+			end)
+
+			if ok then
+				resolve(HttpResponse.new(result))
+			else
+				reject(HttpError.fromErrorString(result))
+			end
+		end)
 	end)
-
-	if not ok then
-		err = HttpError.fromErrorString(result)
-		result = nil
-	end
-
-	return HttpResponse.new(ok, result, err)
 end
 
 function Http:post(endpoint, body)
-	local err = nil
-	local ok, result = pcall(function()
-		return HttpService:PostAsync(self.baseUrl .. endpoint, body)
+	return Promise.new(function(resolve, reject)
+		spawn(function()
+			local ok, result = pcall(function()
+				return HttpService:PostAsync(self.baseUrl .. endpoint, body)
+			end)
+
+			if ok then
+				resolve(HttpResponse.new(result))
+			else
+				reject(HttpError.fromErrorString(result))
+			end
+		end)
 	end)
-
-	if not ok then
-		err = HttpError.fromErrorString(result)
-		result = nil
-	end
-
-	return HttpResponse.new(ok, result, err)
 end
 
 return Http
