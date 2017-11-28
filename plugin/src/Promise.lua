@@ -44,6 +44,10 @@ local function createAdvancer(callback, resolve, reject)
 	end
 end
 
+local function isEmpty(t)
+	return next(t) == nil
+end
+
 local Promise = {}
 Promise.__index = Promise
 
@@ -73,10 +77,19 @@ Promise.__index = Promise
 ]]
 function Promise.new(callback)
 	local promise = {
+		-- Used to locate where a promise was created
 		_source = debug.traceback(),
+
+		-- A tag to identify us as a promise
 		_type = "Promise",
+
 		_status = PromiseState.Started,
+
+		-- A table containing a list of all results, whether success or failure.
+		-- Only valid if _status is set to something besides Started
 		_value = nil,
+
+		-- Queues representing things we should notify when our status updates
 		_queuedResolve = {},
 		_queuedReject = {},
 		_queuedPromises = {},
@@ -102,6 +115,33 @@ function Promise.new(callback)
 end
 
 --[[
+	Create a promise that represents the immediately resolved value.
+]]
+function Promise.resolve(value)
+	return Promise.new(function(resolve)
+		resolve(value)
+	end)
+end
+
+--[[
+	Create a promise that represents the immediately rejected value.
+]]
+function Promise.reject(value)
+	return Promise.new(function(_, reject)
+		reject(value)
+	end)
+end
+
+--[[
+	Returns a new promise that:
+		* is resolved when all input promises resolve
+		* is rejected if ANY input promises reject
+]]
+function Promise.all(...)
+	error("unimplemented", 2)
+end
+
+--[[
 	Is the given object a Promise instance?
 ]]
 function Promise.is(object)
@@ -112,59 +152,16 @@ function Promise.is(object)
 	return object._type == "Promise"
 end
 
-function Promise:_resolve(...)
-	if self._status ~= PromiseState.Started then
-		return
-	end
+--[[
+	Creates a new promise that receives the result of this promise.
 
-	self._status = PromiseState.Resolved
-	self._value = {...}
-
-	-- We assume that these callbacks will not throw errors.
-	for _, callback in ipairs(self._queuedResolve) do
-		callback(...)
-	end
-end
-
-function Promise:_reject(...)
-	if self._status ~= PromiseState.Started then
-		return
-	end
-
-	self._status = PromiseState.Rejected
-	self._value = {...}
-
-	-- If no one attaches a handler to this promise before the next frame, this
-	-- promise becomes an unhandled rejection.
-	if #self._queuedReject == 0 and #self._queuedPromises == 0 then
-		self._isUnhandled = true
-
-		spawn(function()
-			if self._isUnhandled then
-				local message = ("Unhandled promise rejection:\n%s\n\n%s"):format(
-					tostring(self._value[1]),
-					self._source
-				)
-				error(message)
-			end
-		end)
-	end
-
-	for _, promise in ipairs(self._queuedPromises) do
-		promise:_reject(...)
-	end
-
-	-- We assume that these callbacks will not throw errors.
-	for _, callback in ipairs(self._queuedReject) do
-		callback(...)
-	end
-end
-
+	The given callbacks are invoked depending on that result.
+]]
 function Promise:andThen(successCallback, failureCallback)
-	self._isUnhandled = false
-
+	-- Create a new promise to follow this part of the chain
 	local promise = Promise.new(function(resolve, reject)
 		if self._status == PromiseState.Started then
+			-- If we haven't resolved yet, put ourselves into the queue
 			if successCallback then
 				table.insert(self._queuedResolve, createAdvancer(successCallback, resolve, reject))
 			end
@@ -173,10 +170,12 @@ function Promise:andThen(successCallback, failureCallback)
 				table.insert(self._queuedReject, createAdvancer(failureCallback, resolve, reject))
 			end
 		elseif self._status == PromiseState.Resolved then
+			-- This promise has already resolved! Trigger success immediately.
 			if successCallback then
 				createAdvancer(successCallback, resolve, reject)(unpack(self._value))
 			end
 		elseif self._status == PromiseState.Rejected then
+			-- This promise died a terrible death! Trigger failure immediately.
 			if failureCallback then
 				createAdvancer(failureCallback, resolve, reject)(unpack(self._value))
 			end
@@ -188,26 +187,18 @@ function Promise:andThen(successCallback, failureCallback)
 	return promise
 end
 
+--[[
+	Used to catch any errors that may have occurred in the promise.
+]]
 function Promise:catch(failureCallback)
 	return self:andThen(nil, failureCallback)
 end
 
-function Promise.resolve(value)
-	return Promise.new(function(resolve)
-		resolve(value)
-	end)
-end
+--[[
+	Yield until the promise is completed.
 
-function Promise.reject(value)
-	return Promise.new(function(_, reject)
-		reject(value)
-	end)
-end
-
-function Promise.all(...)
-	error("unimplemented", 2)
-end
-
+	This matches the execution model of normal Roblox functions.
+]]
 function Promise:await()
 	local bindable = Instance.new("BindableEvent")
 	local result
@@ -228,6 +219,62 @@ function Promise:await()
 	end
 
 	return unpack(result)
+end
+
+function Promise:_resolve(...)
+	if self._status ~= PromiseState.Started then
+		return
+	end
+
+	-- If the resolved value was a Promise, we chain onto it!
+	if Promise.is((...)) then
+		(...):andThen(function(...)
+			self:_resolve(...)
+		end, function(...)
+			self:_reject(...)
+		end)
+
+		return
+	end
+
+	self._status = PromiseState.Resolved
+	self._value = {...}
+
+	-- We assume that these callbacks will not throw errors.
+	for _, callback in ipairs(self._queuedResolve) do
+		callback(...)
+	end
+end
+
+function Promise:_reject(...)
+	if self._status ~= PromiseState.Started then
+		return
+	end
+
+	self._status = PromiseState.Rejected
+	self._value = {...}
+
+	-- If there are any rejection handlers, call those!
+	if not isEmpty(self._queuedReject) then
+		-- We assume that these callbacks will not throw errors.
+		for _, callback in ipairs(self._queuedReject) do
+			callback(...)
+		end
+	else
+		-- If there were promises attached to us, they're now rejected too!
+		if not isEmpty(self._queuedPromises) then
+			for _, promise in ipairs(self._queuedPromises) do
+				promise:_reject(...)
+			end
+		else
+			-- At this point, no one was able to observe the error.
+			-- An error handler might still be attached if the error occurred
+			-- synchronously. We'll wait one tick, and if there are still no
+			-- observers, then we should throw an error in the console.
+
+			-- TODO: actually implement this
+		end
+	end
 end
 
 return Promise

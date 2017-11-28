@@ -4,7 +4,8 @@
 
 local Config = require(script.Parent.Config)
 local Http = require(script.Parent.Http)
-local ServerContext = require(script.Parent.ServerContext)
+local Server = require(script.Parent.Server)
+local Promise = require(script.Parent.Promise)
 
 local function fileToName(filename)
 	if filename:find("%.server%.lua$") then
@@ -126,9 +127,11 @@ end
 
 function Foop:server()
 	if not self._server then
-		self._server = ServerContext.connect(self._http, function(newServer)
-			self._server = newServer
-		end)
+		self._server = Server.connect(self._http)
+			:catch(function(err)
+				self._server = nil
+				return Promise.reject(err)
+			end)
 	end
 
 	return self._server
@@ -137,13 +140,14 @@ end
 function Foop:connect()
 	print("Testing connection...")
 
-	self:server():ping()
+	self:server()
+		:andThen(function(server)
+			return server:ping()
+		end)
 		:andThen(function(result)
 			print("Server found!")
 			print("Protocol version:", result.protocolVersion)
 			print("Server version:", result.serverVersion)
-		end, function(err)
-			print("FAILURE", err)
 		end)
 end
 
@@ -157,37 +161,41 @@ function Foop:poll()
 	self._polling = true
 	self._label.Enabled = true
 
-	while true do
-		local changes = self:server():getChanges():await()
+	self:server()
+		:andThen(function(server)
+			server:getChanges()
+				:andThen(function(changes)
+					local routes = {}
 
-		local routes = {}
+					for _, change in ipairs(changes) do
+						table.insert(routes, change.route)
+					end
 
-		for _, change in ipairs(changes) do
-			table.insert(routes, change.route)
-		end
+					return server:read(routes), routes
+				end)
+				:andThen(function(items, routes)
+					for index = 1, #routes do
+						local route = routes[index]
+						local item = items[index]
 
-		local items = self:server():read(routes):await()
+						local fullRoute = {"ReplicatedStorage"}
+						for _, v in ipairs(route) do
+							table.insert(fullRoute, v)
+						end
 
-		for index = 1, #routes do
-			local route = routes[index]
-			local item = items[index]
+						write(game, fullRoute, item)
+					end
 
-			local fullRoute = {"ReplicatedStorage"}
-			for _, v in ipairs(route) do
-				table.insert(fullRoute, v)
-			end
-
-			write(game, fullRoute, item)
-		end
-
-		wait(Config.pollingRate)
-	end
+					wait(Config.pollingRate)
+				end)
+		end)
 end
 
 function Foop:syncIn()
 	print("Syncing from server...")
 
-	local response = self:server():read({{"src"}}):await()
+	local response = self:server():await()
+		:read({{"src"}}):await()
 
 	write(game, {"ReplicatedStorage", "src"}, response[1])
 
