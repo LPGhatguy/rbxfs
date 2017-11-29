@@ -7,6 +7,16 @@ local Http = require(script.Parent.Http)
 local Server = require(script.Parent.Server)
 local Promise = require(script.Parent.Promise)
 
+local function collectMatch(source, pattern)
+	local result = {}
+
+	for match in source:gmatch(pattern) do
+		table.insert(result, match)
+	end
+
+	return result
+end
+
 local function fileToName(filename)
 	if filename:find("%.server%.lua$") then
 		return filename:match("^(.-)%.server%.lua$"), "Script"
@@ -142,7 +152,7 @@ function Foop:connect()
 
 	self:server()
 		:andThen(function(server)
-			return server:ping()
+			return server:getInfo()
 		end)
 		:andThen(function(result)
 			print("Server found!")
@@ -180,44 +190,33 @@ function Foop:startPolling()
 	self._polling = true
 	self._label.Enabled = true
 
-	self:server()
+	return self:server()
 		:andThen(function(server)
-			local function step()
-				return server:getChanges()
-					:andThen(function(changes)
-						local routes = {}
+			while self._polling do
+				local changes = server:getChanges():await()
 
-						for _, change in ipairs(changes) do
-							table.insert(routes, change.route)
-						end
+				local routes = {}
 
-						return server:read(routes)
-							:andThen(function(items)
-								return items, routes
-							end)
-					end)
-					:andThen(function(items, routes)
-						for index = 1, #routes do
-							local route = routes[index]
-							local item = items[index]
+				for _, change in ipairs(changes) do
+					table.insert(routes, change.route)
+				end
 
-							local fullRoute = {"ReplicatedStorage"}
-							for _, v in ipairs(route) do
-								table.insert(fullRoute, v)
-							end
+				local items = server:read(routes):await()
 
-							write(game, fullRoute, item)
-						end
+				for index = 1, #routes do
+					local route = routes[index]
+					local item = items[index]
 
-						if self._polling then
-							wait(Config.pollingRate)
+					local fullRoute = {"ReplicatedStorage"}
+					for _, v in ipairs(route) do
+						table.insert(fullRoute, v)
+					end
 
-							return step()
-						end
-					end)
+					write(game, fullRoute, item)
+				end
+
+				wait(Config.pollingRate)
 			end
-
-			return step()
 		end)
 		:catch(function()
 			self:stopPolling()
@@ -227,12 +226,28 @@ end
 function Foop:syncIn()
 	print("Syncing from server...")
 
-	local server = self:server():await()
-	local response = server:read({{"src"}}):await()
+	return self:server()
+		:andThen(function(server)
+			local project = server:getInfo():await().project
 
-	write(game, {"ReplicatedStorage", "src"}, response[1])
+			local readRoutes = {}
 
-	print("Synced successfully!")
+			for name in pairs(project.partitions) do
+				table.insert(readRoutes, {name})
+			end
+
+			local response = server:read(readRoutes):await()
+
+			for index = 1, #readRoutes do
+				local partitionName = readRoutes[index][1]
+				local partition = project.partitions[partitionName]
+				local data = response[index]
+
+				local fullRoute = collectMatch(partition.target, "[^.]+")
+
+				write(game, fullRoute, data)
+			end
+		end)
 end
 
 return Foop

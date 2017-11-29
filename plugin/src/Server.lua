@@ -16,7 +16,6 @@ function Server.connect(http)
 		http = http,
 		serverId = nil,
 		currentTime = 0,
-		project = nil,
 	}
 
 	setmetatable(context, Server)
@@ -25,19 +24,16 @@ function Server.connect(http)
 end
 
 function Server:_start()
-	return self.http:get("/")
+	return self:getInfo()
 		:andThen(function(response)
-			response = response:json()
-
 			self.serverId = response.serverId
 			self.currentTime = response.currentTime
-			self.project = response.project
 
 			return self
 		end)
 end
 
-function Server:ping()
+function Server:getInfo()
 	return self.http:get("/")
 		:andThen(function(response)
 			response = response:json()

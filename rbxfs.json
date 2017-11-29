@@ -5,6 +5,10 @@
     "src": {
       "path": "plugin/src",
       "target": "ReplicatedStorage.src"
+    },
+    "random-rust": {
+      "path": "src",
+      "target": "ReplicatedFirst.rust lol"
     }
   }
 }
