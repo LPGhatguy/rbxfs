@@ -4,12 +4,6 @@
 
 local PROMISE_DEBUG = true
 
-local PromiseState = {
-	Started = "Started",
-	Resolved = "Resolved",
-	Rejected = "Rejected",
-}
-
 -- If promise debugging is on, use a version of pcall that warns on failure.
 -- This is useful for finding errors that happen within Promise itself.
 local wpcall
@@ -51,6 +45,12 @@ end
 local Promise = {}
 Promise.__index = Promise
 
+Promise.Status = {
+	Started = "Started",
+	Resolved = "Resolved",
+	Rejected = "Rejected",
+}
+
 --[[
 	Constructs a new Promise with the given initializing callback.
 
@@ -83,16 +83,15 @@ function Promise.new(callback)
 		-- A tag to identify us as a promise
 		_type = "Promise",
 
-		_status = PromiseState.Started,
+		_status = Promise.Status.Started,
 
 		-- A table containing a list of all results, whether success or failure.
 		-- Only valid if _status is set to something besides Started
 		_value = nil,
 
-		-- Queues representing things we should notify when our status updates
+		-- Queues representing functions we should invoke when we update!
 		_queuedResolve = {},
 		_queuedReject = {},
-		_queuedPromises = {},
 	}
 
 	setmetatable(promise, Promise)
@@ -107,7 +106,7 @@ function Promise.new(callback)
 
 	local ok, err = wpcall(callback, resolve, reject)
 
-	if not ok and promise._status == PromiseState.Started then
+	if not ok and promise._status == Promise.Status.Started then
 		reject(err)
 	end
 
@@ -157,34 +156,34 @@ end
 
 	The given callbacks are invoked depending on that result.
 ]]
-function Promise:andThen(successCallback, failureCallback)
+function Promise:andThen(successHandler, failureHandler)
 	-- Create a new promise to follow this part of the chain
-	local promise = Promise.new(function(resolve, reject)
-		if self._status == PromiseState.Started then
-			-- If we haven't resolved yet, put ourselves into the queue
-			if successCallback then
-				table.insert(self._queuedResolve, createAdvancer(successCallback, resolve, reject))
-			end
+	return Promise.new(function(resolve, reject)
+		-- Our default callbacks just pass values onto the next promise.
+		-- This lets success and failure cascade correctly!
 
-			if failureCallback then
-				table.insert(self._queuedReject, createAdvancer(failureCallback, resolve, reject))
-			end
-		elseif self._status == PromiseState.Resolved then
+		local successCallback = resolve
+		if successHandler then
+			successCallback = createAdvancer(successHandler, resolve, reject)
+		end
+
+		local failureCallback = reject
+		if failureHandler then
+			failureCallback = createAdvancer(failureHandler, resolve, reject)
+		end
+
+		if self._status == Promise.Status.Started then
+			-- If we haven't resolved yet, put ourselves into the queue
+			table.insert(self._queuedResolve, successCallback)
+			table.insert(self._queuedReject, failureCallback)
+		elseif self._status == Promise.Status.Resolved then
 			-- This promise has already resolved! Trigger success immediately.
-			if successCallback then
-				createAdvancer(successCallback, resolve, reject)(unpack(self._value))
-			end
-		elseif self._status == PromiseState.Rejected then
+			successCallback(unpack(self._value))
+		elseif self._status == Promise.Status.Rejected then
 			-- This promise died a terrible death! Trigger failure immediately.
-			if failureCallback then
-				createAdvancer(failureCallback, resolve, reject)(unpack(self._value))
-			end
+			failureCallback(unpack(self._value))
 		end
 	end)
-
-	table.insert(self._queuedPromises, promise)
-
-	return promise
 end
 
 --[[
@@ -222,7 +221,7 @@ function Promise:await()
 end
 
 function Promise:_resolve(...)
-	if self._status ~= PromiseState.Started then
+	if self._status ~= Promise.Status.Started then
 		return
 	end
 
@@ -237,7 +236,7 @@ function Promise:_resolve(...)
 		return
 	end
 
-	self._status = PromiseState.Resolved
+	self._status = Promise.Status.Resolved
 	self._value = {...}
 
 	-- We assume that these callbacks will not throw errors.
@@ -247,11 +246,11 @@ function Promise:_resolve(...)
 end
 
 function Promise:_reject(...)
-	if self._status ~= PromiseState.Started then
+	if self._status ~= Promise.Status.Started then
 		return
 	end
 
-	self._status = PromiseState.Rejected
+	self._status = Promise.Status.Rejected
 	self._value = {...}
 
 	-- If there are any rejection handlers, call those!
@@ -261,19 +260,16 @@ function Promise:_reject(...)
 			callback(...)
 		end
 	else
-		-- If there were promises attached to us, they're now rejected too!
-		if not isEmpty(self._queuedPromises) then
-			for _, promise in ipairs(self._queuedPromises) do
-				promise:_reject(...)
-			end
-		else
-			-- At this point, no one was able to observe the error.
-			-- An error handler might still be attached if the error occurred
-			-- synchronously. We'll wait one tick, and if there are still no
-			-- observers, then we should throw an error in the console.
+		-- At this point, no one was able to observe the error.
+		-- An error handler might still be attached if the error occurred
+		-- synchronously. We'll wait one tick, and if there are still no
+		-- observers, then we should put a message in the console.
 
-			-- TODO: actually implement this
-		end
+		local message = ("Unhandled promise rejection:\n\n%s\n\n%s"):format(
+			tostring((...)),
+			self._source
+		)
+		warn(message)
 	end
 end
 

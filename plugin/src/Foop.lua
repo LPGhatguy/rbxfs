@@ -129,6 +129,7 @@ function Foop:server()
 	if not self._server then
 		self._server = Server.connect(self._http)
 			:catch(function(err)
+				print("Agggh")
 				self._server = nil
 				return Promise.reject(err)
 			end)
@@ -142,6 +143,7 @@ function Foop:connect()
 
 	self:server()
 		:andThen(function(server)
+			print("server", server)
 			return server:ping()
 		end)
 		:andThen(function(result)

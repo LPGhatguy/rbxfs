@@ -28,6 +28,15 @@ stds.plugin = {
 	}
 }
 
+stds.testez = {
+	read_globals = {
+		"describe",
+		"it", "itFOCUS", "itSKIP",
+		"FOCUS", "SKIP", "HACK_NO_XPCALL",
+		"expect",
+	}
+}
+
 ignore = {
 	"212", -- unused arguments
 	"421", -- shadowing local variable
@@ -40,4 +49,8 @@ std = "lua51+roblox"
 
 files["**/*.server.lua"] = {
 	std = "+plugin",
+}
+
+files["**/*-spec.lua"] = {
+	std = "+testez",
 }
