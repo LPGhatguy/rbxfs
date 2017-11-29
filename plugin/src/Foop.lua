@@ -111,11 +111,11 @@ function Foop.new(address, port)
 		label.Font = Enum.Font.SourceSans
 		label.TextSize = 20
 		label.Text = "rbxfs polling"
-		label.BackgroundColor3 = Color3.new(0, 0, 0)
-		label.BackgroundTransparency = 0.6
+		label.BackgroundColor3 = Color3.fromRGB(31, 31, 31)
+		label.BackgroundTransparency = 0.5
 		label.BorderSizePixel = 0
 		label.TextColor3 = Color3.new(1, 1, 1)
-		label.Size = UDim2.new(0, 120, 0, 22)
+		label.Size = UDim2.new(0, 120, 0, 28)
 		label.Position = UDim2.new(0, 0, 0, 0)
 		label.Parent = screenGui
 
@@ -129,7 +129,6 @@ function Foop:server()
 	if not self._server then
 		self._server = Server.connect(self._http)
 			:catch(function(err)
-				print("Agggh")
 				self._server = nil
 				return Promise.reject(err)
 			end)
@@ -143,7 +142,6 @@ function Foop:connect()
 
 	self:server()
 		:andThen(function(server)
-			print("server", server)
 			return server:ping()
 		end)
 		:andThen(function(result)
@@ -153,7 +151,26 @@ function Foop:connect()
 		end)
 end
 
-function Foop:poll()
+function Foop:togglePolling()
+	if self._polling then
+		self:stopPolling()
+	else
+		self:startPolling()
+	end
+end
+
+function Foop:stopPolling()
+	if not self._polling then
+		return
+	end
+
+	print("Stopping polling...")
+
+	self._polling = false
+	self._label.Enabled = false
+end
+
+function Foop:startPolling()
 	if self._polling then
 		return
 	end
@@ -165,39 +182,53 @@ function Foop:poll()
 
 	self:server()
 		:andThen(function(server)
-			server:getChanges()
-				:andThen(function(changes)
-					local routes = {}
+			local function step()
+				return server:getChanges()
+					:andThen(function(changes)
+						local routes = {}
 
-					for _, change in ipairs(changes) do
-						table.insert(routes, change.route)
-					end
-
-					return server:read(routes), routes
-				end)
-				:andThen(function(items, routes)
-					for index = 1, #routes do
-						local route = routes[index]
-						local item = items[index]
-
-						local fullRoute = {"ReplicatedStorage"}
-						for _, v in ipairs(route) do
-							table.insert(fullRoute, v)
+						for _, change in ipairs(changes) do
+							table.insert(routes, change.route)
 						end
 
-						write(game, fullRoute, item)
-					end
+						return server:read(routes)
+							:andThen(function(items)
+								return items, routes
+							end)
+					end)
+					:andThen(function(items, routes)
+						for index = 1, #routes do
+							local route = routes[index]
+							local item = items[index]
 
-					wait(Config.pollingRate)
-				end)
+							local fullRoute = {"ReplicatedStorage"}
+							for _, v in ipairs(route) do
+								table.insert(fullRoute, v)
+							end
+
+							write(game, fullRoute, item)
+						end
+
+						if self._polling then
+							wait(Config.pollingRate)
+
+							return step()
+						end
+					end)
+			end
+
+			return step()
+		end)
+		:catch(function()
+			self:stopPolling()
 		end)
 end
 
 function Foop:syncIn()
 	print("Syncing from server...")
 
-	local response = self:server():await()
-		:read({{"src"}}):await()
+	local server = self:server():await()
+	local response = server:read({{"src"}}):await()
 
 	write(game, {"ReplicatedStorage", "src"}, response[1])
 

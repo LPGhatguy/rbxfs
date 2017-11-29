@@ -22,10 +22,10 @@ local function main()
 			foop:syncIn()
 		end)
 
-	toolbar:CreateButton("Poll", "Poll server for changes", "")
+	toolbar:CreateButton("Toggle Polling", "Poll server for changes", "")
 		.Click:Connect(function()
 			spawn(function()
-				foop:poll()
+				foop:togglePolling()
 			end)
 		end)
 end

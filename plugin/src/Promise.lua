@@ -199,25 +199,31 @@ end
 	This matches the execution model of normal Roblox functions.
 ]]
 function Promise:await()
-	local bindable = Instance.new("BindableEvent")
-	local result
+	if self._status == Promise.Status.Started then
+		local result
+		local bindable = Instance.new("BindableEvent")
 
-	self:andThen(function(...)
-		result = {...}
-		bindable:Fire(true)
-	end, function(...)
-		result = {...}
-		bindable:Fire(false)
-	end)
+		self:andThen(function(...)
+			result = {...}
+			bindable:Fire(true)
+		end, function(...)
+			result = {...}
+			bindable:Fire(false)
+		end)
 
-	local ok = bindable.Event:Wait()
-	bindable:Destroy()
+		local ok = bindable.Event:Wait()
+		bindable:Destroy()
 
-	if not ok then
-		error(tostring(result[1]), 2)
+		if not ok then
+			error(tostring(result[1]), 2)
+		end
+
+		return unpack(result)
+	elseif self._status == Promise.Status.Resolved then
+		return unpack(self._value)
+	elseif self._status == Promise.Status.Rejected then
+		error(tostring(self._value[1]), 2)
 	end
-
-	return unpack(result)
 end
 
 function Promise:_resolve(...)
@@ -227,6 +233,14 @@ function Promise:_resolve(...)
 
 	-- If the resolved value was a Promise, we chain onto it!
 	if Promise.is((...)) then
+		-- Without this warning, arguments sometimes mysteriously disappear
+		if select("#", ...) > 1 then
+			local message = ("When returning a Promise from andThen, extra arguments are discarded! See:\n\n%s"):format(
+				self._source
+			)
+			warn(message)
+		end
+
 		(...):andThen(function(...)
 			self:_resolve(...)
 		end, function(...)
