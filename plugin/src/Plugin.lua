@@ -193,6 +193,8 @@ function Plugin:startPolling()
 		:andThen(function(server)
 			self:syncIn():await()
 
+			local project = server:getInfo():await().project
+
 			while self._polling do
 				local changes = server:getChanges():await()
 
@@ -205,15 +207,13 @@ function Plugin:startPolling()
 				local items = server:read(routes):await()
 
 				for index = 1, #routes do
-					local route = routes[index]
-					local item = items[index]
+					local partitionName = routes[index][1]
+					local partition = project.partitions[partitionName]
+					local data = items[index]
 
-					local fullRoute = {"ReplicatedStorage"}
-					for _, v in ipairs(route) do
-						table.insert(fullRoute, v)
-					end
+					local fullRoute = collectMatch(partition.target, "[^.]+")
 
-					write(game, fullRoute, item)
+					write(game, fullRoute, data)
 				end
 
 				wait(Config.pollingRate)
@@ -237,12 +237,12 @@ function Plugin:syncIn()
 				table.insert(readRoutes, {name})
 			end
 
-			local response = server:read(readRoutes):await()
+			local items = server:read(readRoutes):await()
 
 			for index = 1, #readRoutes do
 				local partitionName = readRoutes[index][1]
 				local partition = project.partitions[partitionName]
-				local data = response[index]
+				local data = items[index]
 
 				local fullRoute = collectMatch(partition.target, "[^.]+")
 
