@@ -1,7 +1,3 @@
---[[
-	What the heck do I name this?
-]]
-
 local Config = require(script.Parent.Config)
 local Http = require(script.Parent.Http)
 local Server = require(script.Parent.Server)
@@ -96,10 +92,13 @@ local function write(parent, route, item)
 	end
 end
 
-local Foop = {}
-Foop.__index = Foop
+local Plugin = {}
+Plugin.__index = Plugin
 
-function Foop.new(address, port)
+function Plugin.new()
+	local address = "localhost"
+	local port = 8081
+
 	local remote = ("http://%s:%d"):format(address, port)
 
 	local foop = {
@@ -108,7 +107,7 @@ function Foop.new(address, port)
 		_polling = false,
 	}
 
-	setmetatable(foop, Foop)
+	setmetatable(foop, Plugin)
 
 	do
 		local screenGui = Instance.new("ScreenGui")
@@ -135,7 +134,7 @@ function Foop.new(address, port)
 	return foop
 end
 
-function Foop:server()
+function Plugin:server()
 	if not self._server then
 		self._server = Server.connect(self._http)
 			:catch(function(err)
@@ -147,7 +146,7 @@ function Foop:server()
 	return self._server
 end
 
-function Foop:connect()
+function Plugin:connect()
 	print("Testing connection...")
 
 	self:server()
@@ -161,7 +160,7 @@ function Foop:connect()
 		end)
 end
 
-function Foop:togglePolling()
+function Plugin:togglePolling()
 	if self._polling then
 		self:stopPolling()
 	else
@@ -169,7 +168,7 @@ function Foop:togglePolling()
 	end
 end
 
-function Foop:stopPolling()
+function Plugin:stopPolling()
 	if not self._polling then
 		return
 	end
@@ -180,7 +179,7 @@ function Foop:stopPolling()
 	self._label.Enabled = false
 end
 
-function Foop:startPolling()
+function Plugin:startPolling()
 	if self._polling then
 		return
 	end
@@ -192,6 +191,8 @@ function Foop:startPolling()
 
 	return self:server()
 		:andThen(function(server)
+			self:syncIn():await()
+
 			while self._polling do
 				local changes = server:getChanges():await()
 
@@ -223,7 +224,7 @@ function Foop:startPolling()
 		end)
 end
 
-function Foop:syncIn()
+function Plugin:syncIn()
 	print("Syncing from server...")
 
 	return self:server()
@@ -247,7 +248,9 @@ function Foop:syncIn()
 
 				write(game, fullRoute, data)
 			end
+
+			print("Sync successful!")
 		end)
 end
 
-return Foop
+return Plugin
