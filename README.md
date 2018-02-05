@@ -1,4 +1,6 @@
 # RBXFS
+**RBXFS has been replaced by [Rojo](https://github.com/LPGhatguy/Rojo) which is much faster, more stable, and doesn't require installing Node.js!**
+
 A system to replicate scripts from the filesystem into Roblox Studio.
 
 ## Installation
